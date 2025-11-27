@@ -18,8 +18,8 @@ export default function Home() {
           {/* LEFT SECTION */}
           <div className="md:w-1/2 w-full flex flex-col items-center">
 
-            <div className="bg-[var(--background-color)] p-6 rounded-xl flex items-center gap-x-4 shadow-md w-full max-w-md
-              transition duration-500 hover:scale-[1.03] hover:shadow-xl">
+            <div className="bg-[var(--background-color)]  mb-9 p-6 rounded-xl flex items-center gap-x-4 shadow-md w-full max-w-md
+              transition duration-500 hover:scale-[1.1] hover:shadow-xl">
               
               <Image
                 src="/logo.png"
