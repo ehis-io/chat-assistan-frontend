@@ -3,6 +3,8 @@
 import { useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import Link from "next/link";
+import Navbar from "../component/Navbar";
 
 export default function Register() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -16,91 +18,130 @@ export default function Register() {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-[var(--background-color)]">
-      <main className="w-full max-w-md bg-[var(--foreground-color)] shadow-lg p-6 rounded-xl">
+    <>
+      <Navbar />
+      <div className="flex min-h-screen items-center justify-center bg-[var(--background-color)] px-4 py-24">
+        <main className="w-full max-w-lg bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100 animate-fadeInSlow">
 
-        <h2 className="text-2xl font-semibold text-[var(--primary-color)] mb-6 text-center">
-          Create an Account
-        </h2>
+          <div className="p-8 md:p-10">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-[var(--text-color)] mb-2">Create an Account</h2>
+              <p className="text-[var(--text-muted)]">Join thousands of businesses automating their support.</p>
+            </div>
 
-        <form action="/api/register" method="POST" className="flex flex-col gap-4">
+            <form className="space-y-4" onSubmit={(e) => {
+              e.preventDefault();
+              window.location.href = "/onboarding";
+            }}>
 
-          <input
-            type="text"
-            name="firstName"
-            placeholder="First name"
-            required
-            className="p-3 rounded-lg border text-[var(--text-color)] border-gray-300"
-          />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-color)] mb-1">First Name</label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    placeholder="John"
+                    required
+                    className="w-full rounded-xl border border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-color)] mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    placeholder="Doe"
+                    required
+                    className="w-full rounded-xl border border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+              </div>
 
-          <input
-            type="text"
-            name="lastName"
-            placeholder="Last name"
-            required
-            className="p-3 rounded-lg border text-[var(--text-color)] border-gray-300"
-          />
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-color)] mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  name="phoneNumber"
+                  placeholder="+1 (555) 000-0000"
+                  required
+                  className="w-full rounded-xl border border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
+                />
+              </div>
 
-          <input
-            type="text"
-            name="phoneNumber"
-            placeholder="Phone number"
-            required
-            className="p-3 rounded-lg border text-[var(--text-color)] border-gray-300"
-          />
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-color)] mb-1">Date of Birth</label>
+                <div className="w-full">
+                  <DatePicker
+                    selected={selectedDate}
+                    onChange={date => setSelectedDate(date)}
+                    dateFormat="yyyy-MM-dd"
+                    placeholderText="Select date"
+                    className="w-full rounded-xl border border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
+                    maxDate={new Date()}
+                    showMonthDropdown
+                    showYearDropdown
+                    dropdownMode="select"
+                    wrapperClassName="w-full"
+                  />
+                </div>
+                <input type="hidden" name="dob" value={formatDOB(selectedDate)} />
+              </div>
 
-          {/* Date of Birth */}
-          <label className="text-sm font-medium text-[var(--text-muted)]">
-            Date of Birth
-          </label>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-color)] mb-1">Email Address</label>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="name@company.com"
+                  required
+                  className="w-full rounded-xl border border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
+                />
+              </div>
 
-          <DatePicker
-            selected={selectedDate}
-            onChange={date => setSelectedDate(date)}
-            dateFormat="yyyy-MM-dd"
-            placeholderText="Select your date of birth"
-            className="w-full p-3 border text-[var(--text-color)] rounded-lg bg-[var(--foreground-color)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]"
-            maxDate={new Date()}
-            showMonthDropdown
-            showYearDropdown
-            dropdownMode="select"
-          />
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-color)] mb-1">Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="••••••••"
+                  required
+                  className="w-full rounded-xl border border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
+                />
+              </div>
 
-          {/* Hidden input to send formatted DOB */}
-          <input type="hidden" name="dob" value={formatDOB(selectedDate)} />
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-color)] mb-1">Confirm Password</label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  placeholder="••••••••"
+                  required
+                  className="w-full rounded-xl border border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
+                />
+              </div>
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            required
-            className="p-3 rounded-lg border text-[var(--text-color)] border-gray-300"
-          />
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full rounded-xl bg-[var(--primary-color)] py-3.5 text-white font-semibold shadow-lg shadow-[var(--primary-color)]/30 hover:shadow-xl hover:shadow-[var(--primary-color)]/40 hover:-translate-y-0.5 transition-all duration-300"
+                >
+                  Create Account
+                </button>
+              </div>
+            </form>
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            required
-            className="p-3 rounded-lg border text-[var(--text-color)] border-gray-300"
-          />
+            <div className="mt-6 text-center">
+              <p className="text-sm text-[var(--text-muted)]">
+                Already have an account?{" "}
+                <Link href="/login" className="font-semibold text-[var(--primary-color)] hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </div>
 
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm Password"
-            required
-            className="p-3 rounded-lg border text-[var(--text-color)] border-gray-300"
-          />
-
-          <button
-            type="submit"
-            className="p-3 rounded-lg bg-[var(--primary-color)] text-[var(--text-color)] font-medium hover:opacity-90 transition"
-          >
-            Register
-          </button>
-        </form>
-      </main>
-    </div>
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
