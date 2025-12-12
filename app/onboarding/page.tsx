@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 
 export default function Onboarding() {
     const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
     const [formData, setFormData] = useState({
         name: "",
         type: "RESTAURANT",
@@ -24,13 +26,36 @@ export default function Onboarding() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Submitting Business Data:", formData);
-        // Mimic API call
-        setTimeout(() => {
-            router.push("/dashboard");
-        }, 1000);
+        setError("");
+        setLoading(true);
+
+        try {
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const token = localStorage.getItem("token");
+
+            const res = await fetch(`${baseUrl}/user/create-business`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (res.ok) {
+                router.push("/dashboard");
+            } else {
+                const data = await res.json().catch(() => ({}));
+                setError(data.message || "Failed to create business. Please try again.");
+            }
+        } catch (err) {
+            console.error(err);
+            setError("Something went wrong. Please check your connection.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -44,6 +69,12 @@ export default function Onboarding() {
                             <h1 className="text-3xl font-bold text-[var(--text-color)] mb-3">Setup Your Business</h1>
                             <p className="text-[var(--text-muted)]">Tell us about your business so our AI can help you better.</p>
                         </div>
+
+                        {error && (
+                            <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm text-center border border-red-100">
+                                {error}
+                            </div>
+                        )}
 
                         <form onSubmit={handleSubmit} className="space-y-8">
 
@@ -192,9 +223,10 @@ export default function Onboarding() {
                             <div className="pt-4 flex justify-end">
                                 <button
                                     type="submit"
-                                    className="min-w-[200px] rounded-xl bg-[var(--primary-color)] py-3.5 text-white font-semibold shadow-lg shadow-[var(--primary-color)]/30 hover:shadow-xl hover:shadow-[var(--primary-color)]/40 hover:-translate-y-0.5 transition-all duration-300"
+                                    disabled={loading}
+                                    className="min-w-[200px] rounded-xl bg-[var(--primary-color)] py-3.5 text-white font-semibold shadow-lg shadow-[var(--primary-color)]/30 hover:shadow-xl hover:shadow-[var(--primary-color)]/40 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
                                 >
-                                    Save & Continue
+                                    {loading ? "Saving..." : "Save & Continue"}
                                 </button>
                             </div>
                         </form>
