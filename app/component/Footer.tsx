@@ -44,7 +44,7 @@ export default function Footer() {
                         © {new Date().getFullYear()} ChatAssist Inc. All rights reserved.
                     </p>
                     <div className="flex gap-6">
-                        <a href="#" className="text-xs text-gray-400 hover:text-[var(--primary-color)]">Privacy Policy</a>
+                        <a href="/privacy-policy" className="text-xs text-gray-400 hover:text-[var(--primary-color)] transition-colors">Privacy Policy</a>
                         <a href="#" className="text-xs text-gray-400 hover:text-[var(--primary-color)]">Terms of Service</a>
                     </div>
                 </div>
