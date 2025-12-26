@@ -142,7 +142,7 @@ export default function Pricing() {
                                         onClose={() => console.log("Payment modal closed")}
                                     />
                                 ) : (
-                                    <Link href={tier.name === "Enterprise" ? "mailto:sales@chatassist.com" : `/register?plan=${tier.id}`} className="block">
+                                    <Link href={tier.name === "Enterprise" ? "mailto:sales@soro.com" : `/register?plan=${tier.id}`} className="block">
                                         <button className={`w-full py-4 rounded-2xl font-bold transition-all duration-300 transform active:scale-95 ${tier.highlight
                                             ? "bg-[var(--primary-color)] text-white shadow-lg shadow-[var(--primary-color)]/30 hover:shadow-xl hover:shadow-[var(--primary-color)]/40 hover:bg-[var(--accent-color)]"
                                             : "bg-gray-50 text-[var(--text-color)] border border-gray-200 hover:bg-gray-100"

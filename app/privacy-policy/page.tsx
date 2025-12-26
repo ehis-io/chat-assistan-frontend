@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
                                 <h2 className="text-2xl font-bold text-black mb-4">1. App Identity</h2>
                                 <p><strong>App Name:</strong> WhatsApp Chat Assist</p>
                                 <p><strong>Company Name:</strong> WhatsApp Chat Assist Ltd.</p>
-                                <p><strong>Contact Email:</strong> support@chatassist.com</p>
+                                <p><strong>Contact Email:</strong> support@soro.com</p>
                             </section>
 
                             <section>
@@ -57,7 +57,7 @@ export default function PrivacyPolicy() {
                                 <h2 className="text-2xl font-bold text-black mb-4">5. Data Retention</h2>
                                 <p>
                                     We store message data and metadata for as long as your account is active or as needed to provide you with our services.
-                                    Users can request data deletion at any time by contacting us at support@chatassist.com. Upon account termination, data is deleted from our servers within 30 days.
+                                    Users can request data deletion at any time by contacting us at support@soro.com. Upon account termination, data is deleted from our servers within 30 days.
                                 </p>
                             </section>
 

@@ -10,7 +10,7 @@ export default function Footer() {
                             <div className="w-8 h-8 relative bg-gradient-to-tr from-[var(--primary-color)] to-[var(--accent-color)] rounded-lg flex items-center justify-center text-white font-bold text-xs">
                                 CA
                             </div>
-                            <span className="text-lg font-bold text-[var(--text-color)]">ChatAssist</span>
+                            <span className="text-lg font-bold text-[var(--text-color)]">Soro</span>
                         </div>
                         <p className="text-[var(--text-muted)] max-w-sm leading-relaxed text-sm">
                             Empowering businesses with intelligent, automated customer support.
@@ -41,7 +41,7 @@ export default function Footer() {
 
                 <div className="border-t border-gray-100 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
                     <p className="text-xs text-gray-400">
-                        © {new Date().getFullYear()} ChatAssist Inc. All rights reserved.
+                        © {new Date().getFullYear()} Soro Inc. All rights reserved.
                     </p>
                     <div className="flex gap-6">
                         <a href="/privacy-policy" className="text-xs text-gray-400 hover:text-[var(--primary-color)] transition-colors">Privacy Policy</a>
