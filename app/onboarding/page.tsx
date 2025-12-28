@@ -16,8 +16,8 @@ function OnboardingContent() {
     const [error, setError] = useState<string | null>(null);
 
     const [whatsappConfig, setWhatsappConfig] = useState({
-        wabaId: "",
-        phoneNumberId: "",
+        wabaId: "1754996635098146",
+        phoneNumberId: "922846450908975",
         code: ""
     });
 
@@ -99,7 +99,7 @@ function OnboardingContent() {
                                     Premium Partner Status
                                 </div>
                                 <h2 className="text-3xl font-black text-gray-900 mb-2">Welcome to {plan?.toUpperCase()}!</h2>
-                                <p className="text-gray-500">Your payment of ₦10,000 has been verified. You now have access to unlimited messaging and advanced AI tools.</p>
+                                <p className="text-gray-500">Your Soro Premium payment has been verified. You now have access to unlimited messaging and advanced AI tools.</p>
                                 {paymentRef && <p className="mt-2 text-[10px] font-mono text-gray-400">Reference: {paymentRef}</p>}
                             </div>
 
@@ -149,7 +149,7 @@ function OnboardingContent() {
                                     <label className="block text-sm font-bold text-gray-700 mb-2">Company Name</label>
                                     <input
                                         type="text"
-                                        placeholder="Athletory Global"
+                                        placeholder="Soro"
                                         className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                                     />
                                 </div>
@@ -184,7 +184,7 @@ function OnboardingContent() {
                                     </svg>
                                 </div>
                                 <h2 className="text-3xl font-black text-gray-900 mb-2">Connect Assets</h2>
-                                <p className="text-gray-500">Linking your Meta assets with your partner account.</p>
+                                <p className="text-gray-500">Linking your Meta assets with your Soro account.</p>
                             </div>
 
                             <section className="bg-blue-50/50 p-6 rounded-[2rem] border border-blue-100 mb-8">
@@ -246,7 +246,7 @@ export default function Onboarding() {
             <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
                 <OnboardingContent />
             </Suspense>
-            
+
             <Footer />
         </>
     );

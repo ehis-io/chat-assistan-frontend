@@ -43,7 +43,7 @@ export default function Navbar() {
                         <span className="text-lg">CA</span>
                     </div>
                     <span className="text-2xl font-black tracking-tighter text-[var(--text-color)] group-hover:text-[var(--primary-color)] transition-colors">
-                        Chat<span className="text-[var(--primary-color)]">Assist</span>
+                        S<span className="text-[var(--primary-color)]">oro</span>
                     </span>
                 </Link>
 

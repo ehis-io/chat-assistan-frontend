@@ -1,5 +1,14 @@
-import { useEffect, useState, useCallback } from "react";
-import { loadMetaSdk, launchEmbeddedSignup, loginWithPermissions, fetchWabAs, fetchPhoneNumbers } from "@/lib/utils/metaSdk";
+'use client';
+
+import { useEffect, useState } from "react";
+import {
+    loadMetaSdk,
+    launchEmbeddedSignup,
+    loginWithPermissions,
+    fetchBusinesses,
+    fetchWabasForBusiness,
+    fetchPhoneNumbers
+} from "@/lib/utils/metaSdk";
 
 interface MetaEmbeddedSignupProps {
     onSuccess: (data: { code: string; waba_id: string; phone_number_id: string }) => void;
@@ -9,38 +18,44 @@ interface MetaEmbeddedSignupProps {
 export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedSignupProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [isManual, setIsManual] = useState(false);
-    const [accounts, setAccounts] = useState<any[]>([]);
+
+    const [businesses, setBusinesses] = useState<any[]>([]);
+    const [wabas, setWabas] = useState<any[]>([]);
     const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
+
+    const [selectedBusiness, setSelectedBusiness] = useState<string>("");
     const [selectedWaba, setSelectedWaba] = useState<string>("");
     const [accessToken, setAccessToken] = useState<string>("");
-    const appId = process.env.NEXT_PUBLIC_META_APP_ID || "1234567890"; // Fallback for dev
+
+    const appId = process.env.NEXT_PUBLIC_META_APP_ID!;
+
+    /* ================= EMBEDDED SIGNUP LISTENER ================= */
 
     useEffect(() => {
-        // Listen for the message from the Meta popup
         const handleMessage = (event: MessageEvent) => {
-            // Check origin for security
-            if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") {
-                return;
-            }
+            if (
+                event.origin !== "https://www.facebook.com" &&
+                event.origin !== "https://web.facebook.com"
+            ) return;
 
             try {
-                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                const payload = typeof event.data === "string"
+                    ? JSON.parse(event.data)
+                    : event.data;
 
-                if (data.type === 'WA_EMBEDDED_SIGNUP_SUCCESS') {
-                    console.log("Meta Signup Success Data:", data);
-                    // Standard Meta structure: data.data contains { code, waba_id, phone_number_id }
-                    if (data.data) {
-                        onSuccess({
-                            code: data.data.code,
-                            waba_id: data.data.waba_id,
-                            phone_number_id: data.data.phone_number_id
-                        });
-                    }
-                } else if (data.type === 'WA_EMBEDDED_SIGNUP_ERROR') {
-                    onError(data.error_message || "Meta Signup failed.");
+                if (payload.type === "WA_EMBEDDED_SIGNUP_SUCCESS" && payload.data) {
+                    onSuccess({
+                        code: payload.data.code,
+                        waba_id: payload.data.waba_id,
+                        phone_number_id: payload.data.phone_number_id
+                    });
                 }
-            } catch (err) {
-                // Not a JSON message or unrelated
+
+                if (payload.type === "WA_EMBEDDED_SIGNUP_ERROR") {
+                    onError(payload.error_message || "Meta signup failed");
+                }
+            } catch {
+                // ignore unrelated messages
             }
         };
 
@@ -48,29 +63,53 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
         return () => window.removeEventListener("message", handleMessage);
     }, [onSuccess, onError]);
 
+    /* ================= EMBEDDED SIGNUP ================= */
+
     const handleConnect = async () => {
         setIsLoading(true);
         try {
             await loadMetaSdk(appId);
             await launchEmbeddedSignup();
         } catch (err: any) {
-            onError(err.message || "Failed to launch Meta Signup.");
+            onError(err.message || "Failed to launch Meta embedded signup");
         } finally {
             setIsLoading(false);
         }
     };
 
+    /* ================= MANUAL FLOW ================= */
+
     const handleManualLogin = async () => {
         setIsLoading(true);
         try {
             await loadMetaSdk(appId);
-            const auth: any = await loginWithPermissions(['whatsapp_business_management', 'whatsapp_business_messaging']);
+
+            const auth: any = await loginWithPermissions([
+                "whatsapp_business_management",
+                "whatsapp_business_messaging",
+                "business_management"
+            ]);
+
             setAccessToken(auth.accessToken);
-            const wabaData: any = await fetchWabAs(auth.accessToken);
-            setAccounts(wabaData);
+
+            const biz = await fetchBusinesses(auth.accessToken);
+            setBusinesses(biz);
             setIsManual(true);
         } catch (err: any) {
-            onError(err.message || "Manual login failed.");
+            onError(err.message || "Manual login failed");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleBusinessSelect = async (businessId: string) => {
+        setSelectedBusiness(businessId);
+        setIsLoading(true);
+        try {
+            const wabas = await fetchWabasForBusiness(businessId, accessToken);
+            setWabas(wabas);
+        } catch (err: any) {
+            onError(err.message || "Failed to fetch WABAs");
         } finally {
             setIsLoading(false);
         }
@@ -80,10 +119,10 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
         setSelectedWaba(wabaId);
         setIsLoading(true);
         try {
-            const numbers: any = await fetchPhoneNumbers(wabaId, accessToken);
+            const numbers = await fetchPhoneNumbers(wabaId, accessToken);
             setPhoneNumbers(numbers);
         } catch (err: any) {
-            onError(err.message || "Failed to fetch phone numbers.");
+            onError(err.message || "Failed to fetch phone numbers");
         } finally {
             setIsLoading(false);
         }
@@ -91,99 +130,159 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
 
     const handleNumberSelect = (phoneNumberId: string) => {
         onSuccess({
-            code: "MANUAL_LOGIN_" + Date.now(),
+            code: `MANUAL_${Date.now()}`,
             waba_id: selectedWaba,
             phone_number_id: phoneNumberId
         });
     };
 
+    /* ================= UI COMPONENTS ================= */
+
+    const LoadingSpinner = () => (
+        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+    );
+
+    const MetaIcon = () => (
+        <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.5 15.17c.52.01 1.04-.1 1.54-.33.51-.23.97-.56 1.34-.98 1.48-1.55 3.52-2.51 5.76-2.51 3.5 0 6.36 2.86 6.36 6.36S23.64 24 20.14 24c-2.24 0-4.28-.96-5.76-2.51-.37-.42-.83-.75-1.34-.98-.5-.23-1.02-.34-1.54-.33-.52-.01-1.04.1-1.54.33-.51.23-.97.56-1.34.98-1.48 1.55-3.52 2.51-5.76 2.51C2.86 24 0 21.14 0 17.64s2.86-6.36 6.36-6.36c2.24 0 4.28.96 5.76 2.51.37.42.83.75 1.34.98.5.23 1.02.34 1.54.33zM6.36 12.82c1.88 0 3.51.84 4.58 2.15.22.28.53.51.88.67.35.16.73.23 1.12.21.39.02.77-.05 1.12-.21.35-.16.66-.39.88-.67 1.07-1.31 2.7-2.15 4.58-2.15 2.87 0 5.21 2.34 5.21 5.21s-2.34 5.21-5.21 5.21c-1.88 0-3.51-.84-4.58-2.15-.22-.28-.53-.51-.88-.67-.35-.16-.73-.23-1.12-.21-.39-.02-.77.05-1.12.21-.35.16-.66.39-.88.67-1.07 1.31-2.7 2.15-4.58 2.15-2.87 0-5.21-2.34-5.21-5.21s2.34-5.21 5.21-5.21z" />
+        </svg>
+    );
+
+    const BusinessIcon = () => (
+        <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+    );
+
+    const WabaIcon = () => (
+        <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586l-4-4a2 2 0 010-2.828l4-4A1.994 1.994 0 019 4h6a2 2 0 012 2v2z" />
+        </svg>
+    );
+
+    const PhoneIcon = () => (
+        <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+    );
+
     if (isManual) {
         return (
-            <div className="space-y-6 animate-fadeIn">
-                {!selectedWaba ? (
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Select WABA</label>
-                        <div className="grid gap-3">
-                            {accounts.length > 0 ? accounts.map((acc) => (
-                                <button
-                                    key={acc.id}
-                                    onClick={() => handleWabaSelect(acc.id)}
-                                    className="p-4 bg-gray-50 border border-gray-100 rounded-2xl text-left hover:border-[var(--primary-color)] hover:bg-blue-50 transition-all group"
-                                >
-                                    <p className="font-bold text-gray-900 group-hover:text-[var(--primary-color)]">{acc.name}</p>
-                                    <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase">ID: {acc.id}</p>
-                                </button>
-                            )) : (
-                                <p className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded-2xl border border-gray-100">No WhatsApp Business Accounts found.</p>
-                            )}
-                        </div>
+            <div className="space-y-4 animate-fadeIn">
+                <div className="mb-4">
+                    <p className="text-sm font-bold text-gray-700 mb-4">
+                        {!selectedBusiness ? "Select your Meta Business Account" :
+                            !selectedWaba ? "Select your WhatsApp Business Account (WABA)" :
+                                "Select your Phone Number"}
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-3">
+                        {!selectedBusiness && businesses.map(b => (
+                            <button
+                                key={b.id}
+                                onClick={() => handleBusinessSelect(b.id)}
+                                className="flex items-center gap-4 p-4 text-left border border-gray-100 bg-white rounded-2xl hover:border-blue-400 hover:shadow-md transition-all group"
+                            >
+                                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                                    <BusinessIcon />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-gray-800">{b.name}</p>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">ID: {b.id}</p>
+                                </div>
+                                <svg className="w-5 h-5 text-gray-300 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        ))}
+
+                        {selectedBusiness && !selectedWaba && wabas.map(w => (
+                            <button
+                                key={w.id}
+                                onClick={() => handleWabaSelect(w.id)}
+                                className="flex items-center gap-4 p-4 text-left border border-gray-100 bg-white rounded-2xl hover:border-green-400 hover:shadow-md transition-all group"
+                            >
+                                <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                                    <WabaIcon />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-gray-800">{w.name}</p>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">ID: {w.id}</p>
+                                </div>
+                                <svg className="w-5 h-5 text-gray-300 group-hover:text-green-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        ))}
+
+                        {selectedWaba && phoneNumbers.map(p => (
+                            <button
+                                key={p.id}
+                                onClick={() => handleNumberSelect(p.id)}
+                                className="flex items-center gap-4 p-4 text-left border border-gray-100 bg-white rounded-2xl hover:border-purple-400 hover:shadow-md transition-all group"
+                            >
+                                <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                                    <PhoneIcon />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="font-bold text-gray-800">{p.display_phone_number}</p>
+                                    <p className="text-[10px] text-gray-400 uppercase tracking-wider">ID: {p.id}</p>
+                                </div>
+                                <svg className="w-5 h-5 text-gray-300 group-hover:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        ))}
                     </div>
-                ) : (
-                    <div className="animate-slideInRight">
-                        <div className="flex justify-between items-center mb-4">
-                            <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Select Phone Number</label>
-                            <button onClick={() => setSelectedWaba("")} className="text-[10px] font-bold text-[var(--primary-color)] hover:underline uppercase">Back to accounts</button>
-                        </div>
-                        <div className="grid gap-3">
-                            {phoneNumbers.length > 0 ? phoneNumbers.map((num) => (
-                                <button
-                                    key={num.id}
-                                    onClick={() => handleNumberSelect(num.id)}
-                                    className="p-4 bg-gray-50 border border-gray-100 rounded-2xl text-left hover:border-[var(--primary-color)] hover:bg-blue-50 transition-all group"
-                                >
-                                    <p className="font-extrabold text-gray-900 group-hover:text-[var(--primary-color)]">{num.display_phone_number}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${num.status === 'APPROVED' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'}`}>
-                                            {num.status}
-                                        </span>
-                                        <span className="text-[10px] font-mono text-gray-400 uppercase">ID: {num.id}</span>
-                                    </div>
-                                </button>
-                            )) : (
-                                <p className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded-2xl border border-gray-100">No phone numbers found for this account.</p>
-                            )}
-                        </div>
-                    </div>
-                )}
-                <button
-                    onClick={() => setIsManual(false)}
-                    className="w-full text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors uppercase tracking-widest pt-4"
-                >
-                    Cancel Manual Selection
-                </button>
+
+                    <button
+                        onClick={() => {
+                            setIsManual(false);
+                            setSelectedBusiness("");
+                            setSelectedWaba("");
+                        }}
+                        className="mt-6 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 mx-auto"
+                    >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back to options
+                    </button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             <button
-                type="button"
                 onClick={handleConnect}
                 disabled={isLoading}
-                className="w-full bg-[#1877F2] text-white py-4 rounded-2xl font-bold hover:bg-blue-600 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-600/20 disabled:opacity-70"
+                className="w-full flex items-center justify-center bg-gradient-to-r from-[#0064E0] to-[#008FEF] text-white py-4 px-6 rounded-2xl font-bold shadow-xl shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed group"
             >
-                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-                {isLoading ? "Loading Meta..." : "Connect WhatsApp Account"}
+                {isLoading ? <LoadingSpinner /> : <MetaIcon />}
+                <span>{isLoading ? "Launching Meta flow..." : "Connect WhatsApp Account"}</span>
             </button>
+
             <div className="relative flex items-center py-2">
                 <div className="flex-grow border-t border-gray-100"></div>
-                <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-300 uppercase tracking-widest">or</span>
+                <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">or</span>
                 <div className="flex-grow border-t border-gray-100"></div>
             </div>
+
             <button
-                type="button"
                 onClick={handleManualLogin}
                 disabled={isLoading}
-                className="w-full bg-white text-gray-700 py-4 rounded-2xl font-bold border-2 border-gray-100 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] transition-all flex items-center justify-center gap-3 disabled:opacity-70"
+                className="w-full flex items-center justify-center gap-2 bg-white text-gray-600 border border-gray-100 py-4 px-6 rounded-2xl font-bold hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
             >
-                {isLoading ? "Fetching Accounts..." : "Select Existing Assets (Manual)"}
+                <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Select Existing Assets (Manual)
             </button>
-            <p className="text-[10px] text-gray-400 text-center leading-relaxed px-4">
-                Recommended for businesses with pre-configured WhatsApp Business Accounts.
-            </p>
         </div>
     );
 }
