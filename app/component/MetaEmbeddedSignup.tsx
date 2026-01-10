@@ -77,6 +77,8 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
                 // 1. Check for standard Embedded Signup Event (JSON format)
                 if (payload.type === "WA_EMBEDDED_SIGNUP_SUCCESS" && payload.data) {
                     console.log("MATCH! WA_EMBEDDED_SIGNUP_SUCCESS JSON event.");
+                    console.log("CAPTURE SUCCESS!", payload.data);
+                    console.log(payload)
                     alert("Capture Success! WhatsApp account linked.");
                     onSuccess({
                         code: payload.data.code,

@@ -25,6 +25,10 @@ interface ChatAnalysisProps {
 
 export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) {
     // Calculate analytics
+    /**
+     * analytics: Computes all statistical data from the raw message history.
+     * Uses useMemo for performance optimization.
+     */
     const analytics = useMemo(() => {
         const totalChats = chats.length;
         let totalMessages = 0;
@@ -35,7 +39,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
         const contactMessageCounts: Record<string, number> = {};
         const emojiCount = { user: 0, contact: 0 };
 
-        // Simple sentiment analysis (basic keyword matching)
+        // Simple sentiment analysis configuration (basic keyword matching)
         const positiveWords = ['good', 'great', 'awesome', 'thanks', 'thank', 'happy', 'love', 'excellent', 'wonderful', 'amazing'];
         const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'angry', 'sad', 'sorry', 'problem', 'issue', 'wrong'];
         let positiveMessages = 0;
@@ -134,7 +138,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
     return (
         <div className="h-full overflow-y-auto bg-gradient-to-br from-gray-50 to-blue-50">
-            {/* Header */}
+            {/* 1. Dashboard Header: Page identity */}
             <div className="bg-white border-b border-gray-200 p-6 sticky top-0 z-10 shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--primary-color)] to-[var(--accent-color)] flex items-center justify-center shadow-lg">
@@ -150,7 +154,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
             </div>
 
             <div className="p-6 space-y-6">
-                {/* Overview Statistics */}
+                {/* 2. Overview Statistics Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard
                         icon={
@@ -194,7 +198,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
                     />
                 </div>
 
-                {/* Sentiment Analysis */}
+                {/* 3. Sentiment Analysis Visualization */}
                 <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                     <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
                         <svg className="w-6 h-6 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,7 +233,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
                 {/* Two Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Top Contacts */}
+                    {/* 4. Top Contacts: People with most interaction */}
                     <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                         <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
                             <svg className="w-6 h-6 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,7 +256,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
                         </div>
                     </div>
 
-                    {/* Word Frequency */}
+                    {/* 5. Word Frequency: Common topics in conversations */}
                     <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                         <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
                             <svg className="w-6 h-6 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -274,7 +278,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
                     </div>
                 </div>
 
-                {/* Message Distribution */}
+                {/* 6. Message Distribution: Comparison and Emojis */}
                 <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                     <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
                         <svg className="w-6 h-6 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

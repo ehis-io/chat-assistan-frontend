@@ -1,5 +1,6 @@
 "use client";
 
+// Interface for the Chat object, used to render items in the sidebar list
 interface Chat {
     id: string;
     name: string;
@@ -19,7 +20,7 @@ interface DashboardSidebarProps {
 export default function DashboardSidebar({ chats, activeChat, onSelectChat, onShowAnalysis }: DashboardSidebarProps) {
     return (
         <div className="h-full bg-white border-r border-gray-200 flex flex-col">
-            {/* Header */}
+            {/* 1. Header Area: Identity and Quick Actions */}
             <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -53,7 +54,7 @@ export default function DashboardSidebar({ chats, activeChat, onSelectChat, onSh
                     </div>
                 </div>
 
-                {/* Search */}
+                {/* 2. Search Integration: Local filtering of conversations */}
                 <div className="relative">
                     <input
                         type="text"
@@ -66,7 +67,7 @@ export default function DashboardSidebar({ chats, activeChat, onSelectChat, onSh
                 </div>
             </div>
 
-            {/* Chat List */}
+            {/* 3. Dynamic Chat List: Renders each active conversation thread */}
             <div className="flex-1 overflow-y-auto">
                 {chats.map((chat) => (
                     <div
@@ -99,7 +100,7 @@ export default function DashboardSidebar({ chats, activeChat, onSelectChat, onSh
                         </div>
                     </div>
                 ))}
-                {/* Logout Section */}
+                {/* 4. Footer Section: User authentication management */}
                 <div className="p-4 border-t border-gray-200">
                     <button
                         onClick={() => {
