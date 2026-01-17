@@ -1,6 +1,6 @@
 "use client";
+import { logout } from "@/lib/utils/auth";
 
-// Interface for the Chat object, used to render items in the sidebar list
 interface Chat {
     id: string;
     name: string;
@@ -21,7 +21,7 @@ interface DashboardSidebarProps {
 export default function DashboardSidebar({ chats, activeChat, onSelectChat, onShowAnalysis, onMetaLink }: DashboardSidebarProps) {
     return (
         <div className="h-full bg-white border-r border-gray-200 flex flex-col">
-            {/* 1. Header Area: Identity and Quick Actions */}
+            {/* Header */}
             <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -55,7 +55,7 @@ export default function DashboardSidebar({ chats, activeChat, onSelectChat, onSh
                     </div>
                 </div>
 
-                {/* 2. Search Integration: Local filtering of conversations */}
+                {/* Search */}
                 <div className="relative">
                     <input
                         type="text"
@@ -68,7 +68,7 @@ export default function DashboardSidebar({ chats, activeChat, onSelectChat, onSh
                 </div>
             </div>
 
-            {/* 3. Dynamic Chat List: Renders each active conversation thread */}
+            {/* Chat List */}
             <div className="flex-1 overflow-y-auto">
                 {chats.map((chat) => (
                     <div
@@ -101,7 +101,7 @@ export default function DashboardSidebar({ chats, activeChat, onSelectChat, onSh
                         </div>
                     </div>
                 ))}
-                {/* 4. Footer Section: User authentication management */}
+                {/* Logout Section */}
                 <div className="p-4 border-t border-gray-200">
                     <button
                         onClick={onMetaLink}
@@ -113,9 +113,7 @@ export default function DashboardSidebar({ chats, activeChat, onSelectChat, onSh
                         Link Meta Portfolio
                     </button>
                     <button
-                        onClick={() => {
-                            import("@/lib/utils/auth").then(auth => auth.logout());
-                        }}
+                        onClick={() => logout()}
                         className="w-full flex items-center gap-3 px-4 py-3 text-red-600 font-medium hover:bg-red-50 rounded-xl transition-all group"
                     >
                         <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">

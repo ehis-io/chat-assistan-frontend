@@ -10,17 +10,16 @@ import { useRouter } from "next/navigation";
 const pricingTiers = [
     {
         id: "free",
-        name: "7-Day Trial",
+        name: "Free",
         price: "0",
-        description: "Experience full power for 7 days. No credit card required.",
+        description: "Perfect for testing and small personal projects.",
         features: [
-            "7 days of full access",
-            "Up to 50 messages/trial",
+            "Up to 50 messages/month",
             "Basic AI assistance",
             "1 WhatsApp Business account",
             "Community support",
         ],
-        buttonText: "Start Free Trial",
+        buttonText: "Get Started",
         highlight: false,
     },
     {

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// Interface for individual message objects in the conversation
 interface Message {
     id: string;
     text: string;
@@ -23,17 +22,12 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
     const [showTemplates, setShowTemplates] = useState(false);
     const [localMessages, setLocalMessages] = useState<Message[]>(messages);
 
-    // List of pre-approved WhatsApp message templates for business initiation
     const mockTemplates = [
         { id: "1", name: "welcome_message", text: "Hello! Welcome to our service. How can we help you today?", category: "UTILITY" },
         { id: "2", name: "order_confirmation", text: "Your order has been confirmed. It will be delivered by tomorrow.", category: "TRANSACTIONAL" },
         { id: "3", name: "appointment_reminder", text: "Friendly reminder of your appointment scheduled for tomorrow.", category: "UTILITY" }
     ];
 
-    /**
-     * handleSend: Handles sending a plain text message.
-     * Updates local state immediately and triggers the parent callback.
-     */
     const handleSend = () => {
         if (inputMessage.trim()) {
             const newMessage: Message = {
@@ -122,7 +116,7 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                     </div>
                 </div>
             )}
-            {/* 1. Header: Contact info and Verification status */}
+            {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="relative">
@@ -151,7 +145,7 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                 </div>
             </div>
 
-            {/* 2. Scrollable Messages Container */}
+            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {localMessages.map((message) => (
                     <div
@@ -188,7 +182,7 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                 ))}
             </div>
 
-            {/* 3. Input Controls: Textarea and Template selector */}
+            {/* Input Area */}
             <div className="bg-white border-t border-gray-200 p-4 pb-8">
                 <div className="flex items-end gap-3 max-w-4xl mx-auto">
                     <div className="flex gap-1 mb-1">

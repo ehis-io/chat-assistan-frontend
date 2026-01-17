@@ -123,7 +123,7 @@ export default function RegisterClient() {
 
                             {planDetail && (
                                 <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-800">
-                                    <span className="font-bold uppercase">{planDetail.name === 'free' ? '7-Day Trial' : planDetail.name} Plan</span> Selected
+                                    <span className="font-bold uppercase">{planDetail.name} Plan</span> Selected
                                     {planDetail.ref && <span className="block mt-1 opacity-70">Payment Ref: {planDetail.ref}</span>}
                                 </div>
                             )}
