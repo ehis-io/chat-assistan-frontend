@@ -7,7 +7,7 @@ import ChatWindow from "../component/ChatWindow";
 import ChatAnalysis from "../component/ChatAnalysis";
 import { loadMetaSdk, launchEmbeddedSignup } from "@/lib/utils/metaSdk";
 
-// Mock data: Simulates a real-time chat database for demonstration purposes
+// Mock data
 const mockChats = [
     {
         id: "1",
@@ -63,36 +63,14 @@ const mockMessages = {
     ]
 };
 
-/**
- * DashboardContent: The core engine of the dashboard.
- * Manages the transition between the AI Chat Analysis view and individual conversation windows.
- */
 function DashboardContent() {
     const searchParams = useSearchParams();
     const [activeChat, setActiveChat] = useState<string | null>("1");
     const [chats] = useState(mockChats);
     const [showAnalysis, setShowAnalysis] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [business, setBusiness] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [metaConnected, setMetaConnected] = useState(false);
 
     useEffect(() => {
-        // Retrieve stored user info
-        const fetchBusinessStatus = async () => {
-            try {
-                const { getUserInfo } = await import("@/lib/utils/auth");
-                const userInfo = getUserInfo();
-                // Business status is retrieved from the stored user info (login data: user.business)
-                setBusiness(userInfo?.business || null);
-            } catch (err) {
-                console.error("Failed to fetch business status", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchBusinessStatus();
         const error = searchParams.get('error');
         if (error === 'access_denied') {
             setErrorMessage('Access Denied: You do not have admin privileges to access that page.');
@@ -158,42 +136,6 @@ function DashboardContent() {
 
     const activeChatData = chats.find(chat => chat.id === activeChat);
 
-    // Guard: If business is not connected, show the notice and hide the dashboard
-    if (!isLoading && (!business || (business.whatsapp_status === 'NOT_CONNECTED' && !business.whatsapp_connected_at))) {
-        return (
-            <div className="h-screen flex items-center justify-center bg-gray-50 p-6">
-                <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 text-center border border-gray-100 animate-fadeIn">
-                    <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center text-[var(--primary-color)] mx-auto mb-6 relative">
-                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full border-4 border-white animate-pulse"></div>
-                    </div>
-                    <h2 className="text-2xl font-black text-gray-900 mb-2">WhatsApp Not Connected</h2>
-                    <p className="text-gray-500 mb-8 leading-relaxed">
-                        Your WhatsApp Business connection is currently inactive. This usually means your setup is pending admin approval or the connection was interrupted.
-                    </p>
-                    <div className="space-y-4">
-
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="w-full bg-[var(--primary-color)] text-gray-600 py-3 rounded-2xl font-bold hover:bg-gray-100 transition-all border border-gray-100 text-sm"
-                        >
-                            Refresh Connection Status
-                        </button>
-                    </div>
-                    <p className="mt-6 text-[10px] text-gray-400">
-                        Estimated setup time: 1-5 business days. You will receive an email once your account is active.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    if (isLoading) {
-        return <div className="h-screen flex items-center justify-center bg-gray-50 text-gray-500 font-medium">Loading workspace...</div>;
-    }
-
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-gray-100">
             {/* Error Notification */}
@@ -216,7 +158,7 @@ function DashboardContent() {
                 </div>
             )}
             <div className="flex flex-1 overflow-hidden">
-                {/* Left Section: Sidebar with Chat List and Actions */}
+                {/* Sidebar */}
                 <div className="w-full md:w-80 flex-shrink-0">
                     <DashboardSidebar
                         chats={chats}
@@ -227,9 +169,8 @@ function DashboardContent() {
                     />
                 </div>
 
-                {/* Right Section: Main Content Area (Conditional View) */}
+                {/* Main Chat Area */}
                 <div className="flex-1  justify-center  hidden md:flex">
-                    {/* View 1: Chat Analysis (Overview of all conversations) */}
                     {showAnalysis ? (
                         <ChatAnalysis
                             chats={chats}
