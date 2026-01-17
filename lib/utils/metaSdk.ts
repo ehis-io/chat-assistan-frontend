@@ -61,7 +61,7 @@ export const loginWithPermissions = (
 
 /* ================= EMBEDDED SIGNUP ================= */
 
-export const launchEmbeddedSignup = (): Promise<void> => {
+export const launchEmbeddedSignup = (): Promise<any> => {
   return new Promise((resolve, reject) => {
     if (!window.FB) {
       reject(new Error('Meta SDK not loaded'));
@@ -69,7 +69,9 @@ export const launchEmbeddedSignup = (): Promise<void> => {
     }
 
     window.FB.login(
-      () => resolve(),
+      (response: any) => {
+        resolve(response);
+      },
       {
         scope: 'whatsapp_business_management,whatsapp_business_messaging',
         extras: {
