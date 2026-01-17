@@ -1,4 +1,5 @@
 "use client";
+import { logout } from "@/lib/utils/auth";
 
 interface Chat {
     id: string;
@@ -112,9 +113,7 @@ export default function DashboardSidebar({ chats, activeChat, onSelectChat, onSh
                         Link Meta Portfolio
                     </button>
                     <button
-                        onClick={() => {
-                            import("@/lib/utils/auth").then(auth => auth.logout());
-                        }}
+                        onClick={() => logout()}
                         className="w-full flex items-center gap-3 px-4 py-3 text-red-600 font-medium hover:bg-red-50 rounded-xl transition-all group"
                     >
                         <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -37,9 +37,7 @@ export default function AuthGuard({ children, requireAuth = true, requireAdmin =
                     if (!userIsAdmin) {
                         // User is authenticated but not an admin
                         // Redirect to dashboard with access denied message
-                        if (typeof window !== 'undefined') {
-                            window.location.href = '/dashboard?error=access_denied';
-                        }
+                        router.push('/dashboard?error=access_denied');
                         return;
                     }
                 }

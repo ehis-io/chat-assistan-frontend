@@ -69,6 +69,16 @@ function DashboardContent() {
     const [chats] = useState(mockChats);
     const [showAnalysis, setShowAnalysis] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [metaConnected, setMetaConnected] = useState(false);
+    const [business, setBusiness] = useState<any>(null);
+
+    useEffect(() => {
+        const { getUserInfo } = require("@/lib/utils/auth");
+        const info = getUserInfo();
+        if (info && info.business) {
+            setBusiness(info.business);
+        }
+    }, []);
 
     useEffect(() => {
         const error = searchParams.get('error');
@@ -87,9 +97,10 @@ function DashboardContent() {
 
 
     const handleConnectionStatus = async () => {
-        try {
+        if (!business || !business.id || !business.access_token) return;
 
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL
+        try {
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
             const response = await fetch(`${baseUrl}/api/v1/business/${business.id}/connection-status`, {
                 method: "GET",
                 headers: {
@@ -97,9 +108,9 @@ function DashboardContent() {
                     "Authorization": `Bearer ${business.access_token}`
                 }
             });
-
+            // Handle response...
         } catch (error) {
-
+            console.error("Failed to fetch connection status:", error);
         }
     }
 
