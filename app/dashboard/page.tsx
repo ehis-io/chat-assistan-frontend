@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import DashboardSidebar from "../component/DashboardSidebar";
 import ChatWindow from "../component/ChatWindow";
 import ChatAnalysis from "../component/ChatAnalysis";
+import { loadMetaSdk, launchEmbeddedSignup } from "@/lib/utils/metaSdk";
 
 // Mock data: Simulates a real-time chat database for demonstration purposes
 const mockChats = [
@@ -74,6 +75,7 @@ function DashboardContent() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [business, setBusiness] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [metaConnected, setMetaConnected] = useState(false);
 
     useEffect(() => {
         // Retrieve stored user info
@@ -105,6 +107,24 @@ function DashboardContent() {
         setActiveChat(null);
     };
 
+
+    const handleConnectionStatus = async () => {
+        try {
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL
+            const response = await fetch(`${baseUrl}/api/v1/business/${business.id}/connection-status`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${business.access_token}`
+                }
+            });
+
+        } catch (error) {
+
+        }
+    }
+
     const handleSelectChat = (chatId: string) => {
         setActiveChat(chatId);
         setShowAnalysis(false);
@@ -113,6 +133,27 @@ function DashboardContent() {
     const handleSendMessage = (message: string) => {
         console.log("Sending message:", message);
         // TODO: Implement actual message sending logic
+    };
+
+    const handleMetaLink = async () => {
+        try {
+            const appId = process.env.NEXT_PUBLIC_META_APP_ID || "";
+            if (!appId) {
+                alert("Meta configuration is missing (App ID).");
+                return;
+            }
+
+            await loadMetaSdk(appId);
+            const response = await launchEmbeddedSignup();
+            console.log("Meta Link response:", response);
+
+            if (response.authResponse) {
+                setMetaConnected(true);
+            }
+        } catch (err: any) {
+            console.error("Meta Link failed:", err);
+            setErrorMessage("Failed to link Meta Portfolio: " + err.message);
+        }
     };
 
     const activeChatData = chats.find(chat => chat.id === activeChat);
@@ -132,22 +173,17 @@ function DashboardContent() {
                     <p className="text-gray-500 mb-8 leading-relaxed">
                         Your WhatsApp Business connection is currently inactive. This usually means your setup is pending admin approval or the connection was interrupted.
                     </p>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
+
                         <button
                             onClick={() => window.location.reload()}
-                            className="w-full bg-[var(--primary-color)] text-white py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20"
+                            className="w-full bg-[var(--primary-color)] text-gray-600 py-3 rounded-2xl font-bold hover:bg-gray-100 transition-all border border-gray-100 text-sm"
                         >
-                            Refresh Status
-                        </button>
-                        <button
-                            onClick={() => window.location.href = '/onboarding'}
-                            className="w-full bg-gray-50 text-gray-600 py-4 rounded-2xl font-bold hover:bg-gray-100 transition-all"
-                        >
-                            Back to Onboarding
+                            Refresh Connection Status
                         </button>
                     </div>
                     <p className="mt-6 text-[10px] text-gray-400">
-                        Estimated setup time: 2-24 hours. You will receive an email once your account is active.
+                        Estimated setup time: 1-5 business days. You will receive an email once your account is active.
                     </p>
                 </div>
             </div>
@@ -187,6 +223,7 @@ function DashboardContent() {
                         activeChat={activeChat}
                         onSelectChat={handleSelectChat}
                         onShowAnalysis={handleShowAnalysis}
+                        onMetaLink={handleMetaLink}
                     />
                 </div>
 

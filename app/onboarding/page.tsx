@@ -369,7 +369,7 @@ function OnboardingContent() {
                                         {isSaving ? "Submitting Request..." : "Submit WhatsApp Connection Request"}
                                     </button>
                                     <p className="text-[10px] text-center text-gray-400 mt-4 leading-relaxed">
-                                        By submitting, you agree to our terms. Our team will review your business details and set up your WhatsApp Business and reply with an email confirmation within 24 hours.
+                                        By submitting, you agree to our terms. Our team will review your business details and set up your WhatsApp Business and contact you within 3 business days.
                                     </p>
                                 </div>
                             </form>
@@ -422,7 +422,7 @@ function OnboardingContent() {
                                                         {item.label}
                                                     </p>
                                                     {item.status === 'current' && (
-                                                        <p className="text-[10px] text-[var(--primary-color)] font-medium">Estimated time: 2-24 hours</p>
+                                                        <p className="text-[10px] text-[var(--primary-color)] font-medium">Estimated time: 1 - 3 business days</p>
                                                     )}
                                                 </div>
                                             </div>
