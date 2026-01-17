@@ -16,25 +16,10 @@ function OnboardingContent() {
     const [error, setError] = useState<string | null>(null);
 
     const [whatsappConfig, setWhatsappConfig] = useState({
-        wabaId: "",
-        phoneNumberId: "",
+        wabaId: "1754996635098146",
+        phoneNumberId: "922846450908975",
         code: ""
     });
-
-    const [businessProfile, setBusinessProfile] = useState({
-        name: "",
-        type: "ecommerce",
-        description: "",
-        whatYouOffer: "",
-        contactInfo: "",
-        availability: "",
-        pricing: "",
-        deliveryOptions: "",
-        policies: "",
-        commonQuestions: ""
-    });
-
-    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const p = searchParams.get("plan");
@@ -52,7 +37,6 @@ function OnboardingContent() {
     }, [searchParams]);
 
     const handleMetaSuccess = (data: { code: string; waba_id: string; phone_number_id: string }) => {
-        console.log("Onboarding: Meta Success Callback Received", data);
         setWhatsappConfig({
             wabaId: data.waba_id,
             phoneNumberId: data.phone_number_id,
@@ -61,91 +45,16 @@ function OnboardingContent() {
         setMetaConnected(true);
         setStep(2);
         setError(null);
-
-        // Short delay to ensure state is updated, then log
-        setTimeout(() => {
-            console.log("Step 2 should now be visible");
-        }, 100);
+        // In a real app, this data would be sent to the backend here
+        console.log("Onboarding: Meta Data Captured", data);
     };
 
     const handleMetaError = (err: string) => {
         setError(err);
     };
 
-    const handleComplete = async () => {
-        if (isSaving) return;
-
-        console.log("!!! Onboarding: handleComplete triggered !!!");
-        setIsSaving(true);
-        setError(null);
-
-        try {
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
-            const token = localStorage.getItem('token');
-
-            if (!token) {
-                console.error("No auth token found");
-                alert("Session expired. Please login again.");
-                router.push('/login');
-                return;
-            }
-
-            const payload = {
-                name: businessProfile.name || "Business",
-                type: businessProfile.type || "other",
-                description: businessProfile.description || "Captured via Onboarding",
-                whatYouOffer: businessProfile.whatYouOffer || "",
-                contactInfo: businessProfile.contactInfo || "",
-                availability: businessProfile.availability || "",
-                pricing: businessProfile.pricing || "",
-                deliveryOptions: businessProfile.deliveryOptions || "",
-                policies: businessProfile.policies || "",
-                commonQuestions: businessProfile.commonQuestions || "",
-                whatsappPhoneNumber: whatsappConfig.phoneNumberId,
-                whatsappBusinessId: whatsappConfig.wabaId,
-                whatsappAccessToken: whatsappConfig.code
-            };
-
-            console.log("Attempting API call to:", `${baseUrl}/user/create-business`);
-            console.log("Payload:", payload);
-
-            const res = await fetch(`${baseUrl}/user/create-business`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            }).catch(e => {
-                console.error("Network Fetch Error:", e);
-                throw new Error("Cannot connect to server. Check your internet or backend status.");
-            });
-
-            console.log("Response status code:", res.status);
-
-            if (res.status === 404) {
-                console.warn("404 received, proceeding to dashboard for demo purposes.");
-                router.push("/dashboard");
-                return;
-            }
-
-            const data = await res.json().catch(() => ({}));
-
-            if (!res.ok) {
-                console.error("Server returned error:", data);
-                throw new Error(data.message || `Server error (${res.status})`);
-            }
-
-            console.log("Save successful, redirecting...");
-            router.push("/dashboard");
-        } catch (err: any) {
-            console.error("handleComplete caught error:", err);
-            setError(err.message);
-            // Also alert for immediate feedback in case console is hidden
-            alert("Error: " + err.message);
-        } finally {
-            setIsSaving(false);
-        }
+    const handleComplete = () => {
+        router.push("/dashboard");
     };
 
     return (
@@ -236,122 +145,22 @@ function OnboardingContent() {
                             </div>
 
                             <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-bold text-gray-800 border-b pb-2">General Information</h3>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Business Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Soro"
-                                            value={businessProfile.name}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, name: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
-                                            required
-                                        />
-                                    </div>
-                                    <div className="pt-4">
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Industry / Type</label>
-                                        <select
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
-                                            value={businessProfile.type}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, type: e.target.value })}
-                                        >
-                                            <option value="ecommerce">E-commerce & Retail</option>
-                                            <option value="real_estate">Real Estate</option>
-                                            <option value="education">Education</option>
-                                            <option value="healthcare">Healthcare</option>
-                                            <option value="finance">Finance & Banking</option>
-                                            <option value="technology">Technology & Software</option>
-                                            <option value="hospitality">Hospitality & Tourism</option>
-                                            <option value="services">Other Services</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Short Description</label>
-                                        <textarea
-                                            placeholder="What does your business do?"
-                                            value={businessProfile.description}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, description: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all h-24 resize-none"
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Company Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Soro"
+                                        className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
+                                    />
                                 </div>
-
-                                <div className="space-y-4 pt-6">
-                                    <h3 className="text-lg font-bold text-gray-800 border-b pb-2">Onboarding Questions</h3>
-
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">What services or products do you offer?</label>
-                                        <textarea
-                                            value={businessProfile.whatYouOffer}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, whatYouOffer: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all h-24 resize-none"
-                                            placeholder="List your key offerings..."
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Contact Information</label>
-                                        <input
-                                            type="text"
-                                            value={businessProfile.contactInfo}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, contactInfo: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
-                                            placeholder="Email, support channel, etc."
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Working Hours / Availability</label>
-                                        <input
-                                            type="text"
-                                            value={businessProfile.availability}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, availability: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
-                                            placeholder="e.g. Mon-Fri, 9am - 5pm"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Pricing Information</label>
-                                        <input
-                                            type="text"
-                                            value={businessProfile.pricing}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, pricing: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
-                                            placeholder="Starting price or price range..."
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Delivery / Shipping Options</label>
-                                        <textarea
-                                            value={businessProfile.deliveryOptions}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, deliveryOptions: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all h-24 resize-none"
-                                            placeholder="How do you deliver items?"
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Business Policies (Refunds, etc.)</label>
-                                        <textarea
-                                            value={businessProfile.policies}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, policies: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all h-24 resize-none"
-                                            placeholder="Returns, refunds, late fees..."
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Common Questions (Optional)</label>
-                                        <textarea
-                                            value={businessProfile.commonQuestions}
-                                            onChange={(e) => setBusinessProfile({ ...businessProfile, commonQuestions: e.target.value })}
-                                            className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all h-24 resize-none"
-                                            placeholder="FAQ for your customers..."
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Industry</label>
+                                    <select className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all">
+                                        <option>E-commerce & Retail</option>
+                                        <option>Real Estate</option>
+                                        <option>Education</option>
+                                        <option>Healthcare</option>
+                                    </select>
                                 </div>
                                 <div className="pt-4">
                                     <p className="text-xs text-gray-400 mb-4 text-center">
@@ -365,7 +174,6 @@ function OnboardingContent() {
                             </form>
                         </div>
                     )}
-
 
                     {step === 2 && (
                         <div className="animate-fadeIn">
@@ -419,16 +227,9 @@ function OnboardingContent() {
 
                             <button
                                 onClick={handleComplete}
-                                disabled={isSaving}
-                                className="w-full bg-[var(--primary-color)] text-white py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full bg-[var(--primary-color)] text-white py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20"
                             >
-                                {isSaving && (
-                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                )}
-                                {isSaving ? "Saving Configuration..." : "Finish Setup & Enter Dashboard"}
+                                Finish Setup & Enter Dashboard
                             </button>
                         </div>
                     )}

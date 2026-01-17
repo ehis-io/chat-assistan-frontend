@@ -27,88 +27,35 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
     const [selectedWaba, setSelectedWaba] = useState<string>("");
     const [accessToken, setAccessToken] = useState<string>("");
 
-    const appId = process.env.NEXT_PUBLIC_META_APP_ID;
-
-    useEffect(() => {
-        if (!appId) {
-            console.error("Meta App ID is missing in environment variables!");
-            onError("Meta configuration error: Missing App ID.");
-        }
-    }, [appId, onError]);
+    const appId = process.env.NEXT_PUBLIC_META_APP_ID!;
 
     /* ================= EMBEDDED SIGNUP LISTENER ================= */
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
-            const allowedOrigins = [
-                "https://www.facebook.com",
-                "https://web.facebook.com",
-                "https://business.facebook.com",
-                "https://meta.facebook.com"
-            ];
-
-            if (!allowedOrigins.includes(event.origin)) return;
+            if (
+                event.origin !== "https://www.facebook.com" &&
+                event.origin !== "https://web.facebook.com"
+            ) return;
 
             try {
-                let payload: any;
+                const payload = typeof event.data === "string"
+                    ? JSON.parse(event.data)
+                    : event.data;
 
-                if (typeof event.data === "string") {
-                    // Try JSON first
-                    try {
-                        payload = JSON.parse(event.data);
-                    } catch (e) {
-                        // Fallback: Try parsing as Query Params (URLSearchParams)
-                        // Meta SDK internal messages (cb=...) use this format
-                        if (event.data.includes("=") && (event.data.includes("code") || event.data.includes("access_token"))) {
-                            const params = new URLSearchParams(event.data);
-                            payload = Object.fromEntries(params.entries());
-                            console.log("Captured QueryParam-style message:", payload);
-                        } else {
-                            // Quietly ignore non-target strings to avoid console noise
-                            return;
-                        }
-                    }
-                } else {
-                    payload = event.data;
-                }
-
-                if (!payload) return;
-
-                // 1. Check for standard Embedded Signup Event (JSON format)
                 if (payload.type === "WA_EMBEDDED_SIGNUP_SUCCESS" && payload.data) {
-                    console.log("MATCH! WA_EMBEDDED_SIGNUP_SUCCESS JSON event.");
-                    alert("Capture Success! WhatsApp account linked.");
                     onSuccess({
                         code: payload.data.code,
                         waba_id: payload.data.waba_id,
                         phone_number_id: payload.data.phone_number_id
                     });
                 }
-                // 2. Check for alternative/SDK internal format (like what was seen in logs)
-                else if (payload.code && payload.waba_id && payload.phone_number_id) {
-                    console.log("MATCH! Extracted IDs from alternate format message.");
-                    onSuccess({
-                        code: payload.code,
-                        waba_id: payload.waba_id,
-                        phone_number_id: payload.phone_number_id
-                    });
-                }
-                // 3. Check if we just got a token but No IDs (the current blocker)
-                else if (payload.access_token || payload.code) {
-                    const token = payload.access_token;
-                    const code = payload.code || `MANUAL_${Date.now()}`;
-                    if (token && !isManual && !isLoading) {
-                        console.log("Meta: Token received via postMessage but no IDs. triggering auto-fetch.");
-                        fetchAndAutoSelectAssets(token, code);
-                    }
-                }
-                else if (payload.type === "WA_EMBEDDED_SIGNUP_ERROR") {
-                    console.error("CAPTURE ERROR!", payload.error_message);
-                    alert("Setup Error: " + (payload.error_message || "Meta flow failed."));
+
+                if (payload.type === "WA_EMBEDDED_SIGNUP_ERROR") {
                     onError(payload.error_message || "Meta signup failed");
                 }
-            } catch (err) {
-                // Ignore parse errors for unrelated messages
+            } catch {
+                // ignore unrelated messages
             }
         };
 
@@ -118,85 +65,11 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
 
     /* ================= EMBEDDED SIGNUP ================= */
 
-    const fetchAndAutoSelectAssets = async (token: string, code: string) => {
-        console.log("Meta: Starting auto-fetch for assets with token...");
-        setIsLoading(true);
-        setAccessToken(token);
-        try {
-            const biz = await fetchBusinesses(token);
-            setBusinesses(biz);
-
-            if (biz.length === 0) {
-                console.log("Meta: No business accounts found.");
-                setIsManual(true);
-                return;
-            }
-
-            // Only auto-select if there is exactly ONE business
-            if (biz.length === 1) {
-                const businessId = biz[0].id;
-                console.log("Meta: Auto-selecting business:", businessId);
-                setSelectedBusiness(businessId);
-                const fetchedWabas = await fetchWabasForBusiness(businessId, token);
-                setWabas(fetchedWabas);
-
-                // Only auto-select if there is exactly ONE WABA
-                if (fetchedWabas.length === 1) {
-                    const wabaId = fetchedWabas[0].id;
-                    console.log("Meta: Auto-selecting WABA:", wabaId);
-                    setSelectedWaba(wabaId);
-                    const fetchedNumbers = await fetchPhoneNumbers(wabaId, token);
-                    setPhoneNumbers(fetchedNumbers);
-
-                    // Only auto-select if there is exactly ONE phone number
-                    if (fetchedNumbers.length === 1) {
-                        const phoneNumberId = fetchedNumbers[0].id;
-                        console.log("Meta: Auto-captured single asset path. Success!");
-                        onSuccess({
-                            code,
-                            waba_id: wabaId,
-                            phone_number_id: phoneNumberId
-                        });
-                        return;
-                    }
-                }
-            }
-
-            // If we reach here, it means we have multiple options or zero found
-            console.log("Meta: Multiple assets found or auto-selection impossible. Showing manual picker.");
-            setIsManual(true);
-        } catch (err: any) {
-            console.error("Meta: Auto-fetch error caught:", err);
-            setIsManual(true); // Fallback to manual selection screen
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const handleConnect = async () => {
-        if (!appId) {
-            onError("Meta App ID is missing. Please check your environment variables.");
-            return;
-        }
         setIsLoading(true);
         try {
             await loadMetaSdk(appId);
-            const response = await launchEmbeddedSignup();
-
-            console.log("Meta: launchEmbeddedSignup complete response:", response);
-
-            if (response.status === 'connected' && response.authResponse) {
-                const { waba_id, phone_number_id, accessToken: token } = response.authResponse;
-                const activeCode = response.authResponse.code || `MANUAL_${Date.now()}`;
-
-                if (activeCode && waba_id && phone_number_id) {
-                    console.log("Meta: Captured IDs directly from login callback.");
-                    onSuccess({ code: activeCode as string, waba_id: waba_id as string, phone_number_id: phone_number_id as string });
-                } else if (token) {
-                    console.log("Meta: IDs missing from callback. Attempting auto-fetch with token.");
-                    fetchAndAutoSelectAssets(token, activeCode as string);
-                }
-            }
+            await launchEmbeddedSignup();
         } catch (err: any) {
             onError(err.message || "Failed to launch Meta embedded signup");
         } finally {
@@ -206,28 +79,28 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
 
     /* ================= MANUAL FLOW ================= */
 
-    // const handleManualLogin = async () => {
-    //     setIsLoading(true);
-    //     try {
-    //         await loadMetaSdk(appId);
+    const handleManualLogin = async () => {
+        setIsLoading(true);
+        try {
+            await loadMetaSdk(appId);
 
-    //         const auth: any = await loginWithPermissions([
-    //             "whatsapp_business_management",
-    //             "whatsapp_business_messaging",
-    //             "business_management"
-    //         ]);
+            const auth: any = await loginWithPermissions([
+                "whatsapp_business_management",
+                "whatsapp_business_messaging",
+                "business_management"
+            ]);
 
-    //         setAccessToken(auth.accessToken);
+            setAccessToken(auth.accessToken);
 
-    //         const biz = await fetchBusinesses(auth.accessToken);
-    //         setBusinesses(biz);
-    //         setIsManual(true);
-    //     } catch (err: any) {
-    //         onError(err.message || "Manual login failed");
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
+            const biz = await fetchBusinesses(auth.accessToken);
+            setBusinesses(biz);
+            setIsManual(true);
+        } catch (err: any) {
+            onError(err.message || "Manual login failed");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleBusinessSelect = async (businessId: string) => {
         setSelectedBusiness(businessId);
@@ -394,13 +267,13 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
                 <span>{isLoading ? "Launching Meta flow..." : "Connect WhatsApp Account"}</span>
             </button>
 
-            {/* <div className="relative flex items-center py-2">
+            <div className="relative flex items-center py-2">
                 <div className="flex-grow border-t border-gray-100"></div>
                 <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">or</span>
                 <div className="flex-grow border-t border-gray-100"></div>
-            </div> */}
+            </div>
 
-            {/* <button
+            <button
                 onClick={handleManualLogin}
                 disabled={isLoading}
                 className="w-full flex items-center justify-center gap-2 bg-white text-gray-600 border border-gray-100 py-4 px-6 rounded-2xl font-bold hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
@@ -409,7 +282,7 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Select Existing Assets (Manual)
-            </button> */}
+            </button>
         </div>
     );
 }

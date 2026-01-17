@@ -11,36 +11,21 @@ declare global {
 
 export const loadMetaSdk = (appId: string): Promise<void> => {
   return new Promise((resolve) => {
-    // If FB is already fully initialized, resolve immediately
-    if (window.FB && window.FB.init) {
-      console.log("Meta SDK already loaded and initialized.");
+    if (window.FB) {
       resolve();
-      return;
-    }
-
-    // If we've already defined fbAsyncInit, we're already waiting for load
-    if (window.fbAsyncInit) {
-      const originalInit = window.fbAsyncInit;
-      window.fbAsyncInit = function() {
-        originalInit();
-        resolve();
-      };
       return;
     }
 
     window.fbAsyncInit = function () {
-      console.log("Initializing Meta SDK with App ID:", appId);
       window.FB.init({
         appId,
-        cookie: false, // Set to false to avoid "overriding access token" warnings
+        cookie: true,
         xfbml: false,
         version: 'v21.0'
       });
-      console.log("Meta SDK initialized.");
       resolve();
     };
 
-    console.log("Loading Meta SDK script...");
     const script = document.createElement('script');
     script.id = 'facebook-jssdk';
     script.src = 'https://connect.facebook.net/en_US/sdk.js';
@@ -76,19 +61,15 @@ export const loginWithPermissions = (
 
 /* ================= EMBEDDED SIGNUP ================= */
 
-export const launchEmbeddedSignup = (): Promise<any> => {
+export const launchEmbeddedSignup = (): Promise<void> => {
   return new Promise((resolve, reject) => {
     if (!window.FB) {
       reject(new Error('Meta SDK not loaded'));
       return;
     }
 
-    console.log("Launching FB.login for Embedded Signup...");
     window.FB.login(
-      (response: any) => {
-        console.log("FB.login response received:", response);
-        resolve(response);
-      },
+      () => resolve(),
       {
         scope: 'whatsapp_business_management,whatsapp_business_messaging',
         extras: {
