@@ -4,21 +4,38 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../component/Navbar";
 import Footer from "../component/Footer";
-import MetaEmbeddedSignup from "../component/MetaEmbeddedSignup";
+import dynamic from "next/dynamic";
+
+const MetaEmbeddedSignup = dynamic(() => import("../component/MetaEmbeddedSignup"), { ssr: false });
 
 function OnboardingContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [step, setStep] = useState(1);
+    const [subStep, setSubStep] = useState(0);
     const [metaConnected, setMetaConnected] = useState(false);
     const [plan, setPlan] = useState<string | null>(null);
     const [paymentRef, setPaymentRef] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    const [businessData, setBusinessData] = useState({
+        name: "",
+        type: "E_COMMERCE" as any, // BusinessType enum
+        description: "",
+        whatYouOffer: "",
+        contactInfo: "",
+        availability: "",
+        pricing: "",
+        deliveryOptions: "",
+        policies: "",
+        commonQuestions: ""
+    });
+
     const [whatsappConfig, setWhatsappConfig] = useState({
-        wabaId: "1754996635098146",
-        phoneNumberId: "922846450908975",
-        code: ""
+        wabaId: "",
+        phoneNumberId: "",
+        code: "",
+        phoneNumber: "" // whatsappPhoneNumber
     });
 
     useEffect(() => {
@@ -36,16 +53,73 @@ function OnboardingContent() {
         }
     }, [searchParams]);
 
+    const KNOWLEDGE_BASE_QUESTIONS = [
+        {
+            id: 'whatYouOffer',
+            label: "What exactly do you offer?",
+            guide: "Hi! I'm your AI guide. Let's start by defining what your business actually does. This helps me answer general inquiries about your services.",
+            placeholder: "e.g., We provide fast-moving consumer goods and home delivery...",
+            suggestions: ["Physical Retail Goods", "E-commerce Products", "Digital SaaS Tools", "Real Estate Services", "Consulting & Strategy", "Healthcare Services", "Educational Courses", "Hospitality & Dining", "Logistics & Delivery"]
+        },
+        {
+            id: 'pricing',
+            label: "How should I talk about pricing?",
+            guide: "Pricing is the most common question. Should I give fixed rates, or tell people it depends on their requirements?",
+            placeholder: "e.g., Starting from $20, or Custom quotes per project...",
+            suggestions: ["Fixed pricing", "Subscription plans", "Custom quotes", "Starting from $...", "Tiered pricing", "Pay-as-you-go", "Free consultation", "Bulk discounts available"]
+        },
+        {
+            id: 'contactInfo',
+            label: "How can customers reach you directly?",
+            guide: "If I can't answer a question, where should I point people? Your website, a phone number, or an email?",
+            placeholder: "e.g., hello@business.com or call +123456789...",
+            suggestions: ["Email: hello@example.com", "Call us at +...", "Visit our website", "Instagram DM", "Physical store visit", "Support helpdesk", "WhatsApp message"]
+        },
+        {
+            id: 'availability',
+            label: "What are your business hours?",
+            guide: "When is your team available to take over if I can't help? People love knowing when you're 'open'.",
+            placeholder: "e.g., 24/7 Service or Mon-Fri 9am-5pm...",
+            suggestions: ["24/7 Support", "Mon-Fri 9am-6pm", "9am - 10pm daily", "By Appointment only", "Weekends closed", "Always open online", "Public holidays closed"]
+        },
+        {
+            id: 'deliveryOptions',
+            label: "How do you handle delivery?",
+            guide: "If people order from you, how do they get it? Knowing your shipping radius or delivery method is key.",
+            placeholder: "e.g., Nationwide shipping or Local pickup only...",
+            suggestions: ["Nationwide shipping", "Local pickup point", "Same-day delivery", "3-5 business days", "Digital delivery (Email)", "International shipping", "Cloud access", "Home delivery"]
+        },
+        {
+            id: 'policies',
+            label: "Any important policies I should know?",
+            guide: "To protect you and the customer, tell me about your refund or cancellation policies.",
+            placeholder: "e.g., 30-day refund policy, no cancellations after 24h...",
+            suggestions: ["30-day returns", "No refund policy", "Full money-back", "7-day exchange", "Terms & Conditions", "Privacy protection", "Cancel anytime", "Encrypted data"]
+        },
+        {
+            id: 'commonQuestions',
+            label: "Anything else you want me to know?",
+            guide: "This is a catch-all for any other details that make your business unique. You can skip this if you're done!",
+            placeholder: "e.g., We are family-owned since 1990...",
+            suggestions: ["Family-owned since...", "Sustainable sourcing", "Award-winning", "Certified Organic", "Established in...", "100+ Happy Clients", "24/7 AI Assistance", "Global presence"]
+        }
+    ];
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setBusinessData(prev => ({ ...prev, [name]: value }));
+    };
+
     const handleMetaSuccess = (data: { code: string; waba_id: string; phone_number_id: string }) => {
-        setWhatsappConfig({
+        setWhatsappConfig(prev => ({
+            ...prev,
             wabaId: data.waba_id,
             phoneNumberId: data.phone_number_id,
             code: data.code
-        });
+        }));
         setMetaConnected(true);
-        setStep(2);
+        setStep(4);
         setError(null);
-        // In a real app, this data would be sent to the backend here
         console.log("Onboarding: Meta Data Captured", data);
     };
 
@@ -63,13 +137,13 @@ function OnboardingContent() {
                 {/* Progress Bar */}
                 <div className="mb-12">
                     <div className="flex justify-between items-center mb-4">
-                        {[0, 1, 2].map((s) => (
+                        {[0, 1, 2, 3, 4].map((s) => (
                             <div key={s} className="flex flex-col items-center gap-2">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-500 ${step >= s ? "bg-[var(--primary-color)] text-white shadow-lg shadow-[var(--primary-color)]/30" : "bg-white text-gray-300 border border-gray-100"}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all duration-500 ${step >= s ? "bg-[var(--primary-color)] text-white shadow-lg shadow-[var(--primary-color)]/30" : "bg-white text-gray-300 border border-gray-100"}`}>
                                     {s === 0 ? "★" : s}
                                 </div>
-                                <span className={`text-[10px] font-bold uppercase tracking-widest ${step >= s ? "text-[var(--primary-color)]" : "text-gray-300"}`}>
-                                    {s === 0 ? "Partner" : s === 1 ? "Business" : "WhatsApp"}
+                                <span className={`text-[9px] font-extrabold uppercase tracking-widest ${step >= s ? "text-[var(--primary-color)]" : "text-gray-300"}`}>
+                                    {s === 0 ? "Init" : s === 1 ? "Business" : s === 2 ? "Knowledge" : s === 3 ? "WhatsApp" : "Done"}
                                 </span>
                             </div>
                         ))}
@@ -77,7 +151,7 @@ function OnboardingContent() {
                     <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
                         <div
                             className="h-full bg-[var(--primary-color)] transition-all duration-700 ease-out"
-                            style={{ width: `${(step / 2) * 100}%` }}
+                            style={{ width: `${(step / 4) * 100}%` }}
                         ></div>
                     </div>
                 </div>
@@ -144,38 +218,188 @@ function OnboardingContent() {
                                 <p className="text-gray-500">Tell us about your organization to optimize your AI assistant.</p>
                             </div>
 
-                            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                            <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); setStep(2); }}>
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700 mb-2">Company Name</label>
                                     <input
                                         type="text"
+                                        name="name"
+                                        value={businessData.name}
+                                        onChange={handleInputChange}
                                         placeholder="Soro"
+                                        required
                                         className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Industry</label>
-                                    <select className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all">
-                                        <option>E-commerce & Retail</option>
-                                        <option>Real Estate</option>
-                                        <option>Education</option>
-                                        <option>Healthcare</option>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Business Type</label>
+                                    <select
+                                        name="type"
+                                        value={businessData.type}
+                                        onChange={handleInputChange}
+                                        className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
+                                    >
+                                        <option value="E_COMMERCE">E-commerce & Retail</option>
+                                        <option value="REAL_ESTATE">Real Estate</option>
+                                        <option value="EDUCATION">Education</option>
+                                        <option value="HEALTHCARE">Healthcare</option>
                                     </select>
                                 </div>
-                                <div className="pt-4">
-                                    <p className="text-xs text-gray-400 mb-4 text-center">
-                                        Connect your business to WhatsApp. You will be redirected to Meta to select your business account.
-                                    </p>
-                                    <MetaEmbeddedSignup
-                                        onSuccess={handleMetaSuccess}
-                                        onError={handleMetaError}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
+                                    <textarea
+                                        name="description"
+                                        value={businessData.description}
+                                        onChange={handleInputChange}
+                                        placeholder="Short description of your business..."
+                                        className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all min-h-[100px]"
                                     />
+                                </div>
+                                <div className="pt-4">
+                                    <button
+                                        type="submit"
+                                        className="w-full bg-[var(--primary-color)] text-white py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20"
+                                    >
+                                        Save & Continue →
+                                    </button>
                                 </div>
                             </form>
                         </div>
                     )}
 
                     {step === 2 && (
+                        <div className="animate-fadeIn relative">
+                            {/* Sub-progress indicator */}
+                            <div className="flex gap-1 mb-8">
+                                {KNOWLEDGE_BASE_QUESTIONS.map((_, i) => (
+                                    <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-500 ${subStep >= i ? "bg-[var(--primary-color)]" : "bg-gray-100"}`} />
+                                ))}
+                            </div>
+
+                            <div className="flex gap-4 mb-6 items-start">
+                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span className="text-xl">🤖</span>
+                                </div>
+                                <div className="bg-gray-50 p-4 rounded-2xl rounded-tl-none border border-gray-100 relative">
+                                    <p className="text-sm text-gray-700 leading-relaxed italic">
+                                        "{KNOWLEDGE_BASE_QUESTIONS[subStep].guide}"
+                                    </p>
+                                    <div className="absolute -left-2 top-0 w-2 h-2 bg-gray-50 border-l border-t border-gray-100 -rotate-45" />
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm mb-8 animate-slideUp">
+                                <label className="block text-xl font-black text-gray-900 mb-4">
+                                    {KNOWLEDGE_BASE_QUESTIONS[subStep].label}
+                                </label>
+
+                                <textarea
+                                    name={KNOWLEDGE_BASE_QUESTIONS[subStep].id}
+                                    value={(businessData as any)[KNOWLEDGE_BASE_QUESTIONS[subStep].id]}
+                                    onChange={handleInputChange}
+                                    placeholder={KNOWLEDGE_BASE_QUESTIONS[subStep].placeholder}
+                                    className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-5 text-gray-900 text-base focus:ring-4 focus:ring-blue-50 outline-none transition-all min-h-[120px] mb-4"
+                                />
+
+                                <div className="flex flex-wrap gap-2">
+                                    {KNOWLEDGE_BASE_QUESTIONS[subStep].suggestions.map((suggestion) => (
+                                        <button
+                                            key={suggestion}
+                                            type="button"
+                                            onClick={() => {
+                                                const currentId = KNOWLEDGE_BASE_QUESTIONS[subStep].id;
+                                                const currentValue = (businessData as any)[currentId];
+                                                const newValue = currentValue
+                                                    ? `${currentValue}, ${suggestion}`
+                                                    : suggestion;
+                                                setBusinessData(prev => ({ ...prev, [currentId]: newValue }));
+                                            }}
+                                            className="px-3 py-1.5 bg-blue-50 text-[var(--primary-color)] rounded-full text-xs font-bold hover:bg-blue-100 transition-colors border border-blue-100/50"
+                                        >
+                                            + {suggestion}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4">
+                                <button
+                                    onClick={() => {
+                                        if (subStep > 0) setSubStep(s => s - 1);
+                                        else setStep(1);
+                                    }}
+                                    className="px-6 py-4 text-gray-400 font-bold hover:text-gray-600 transition-colors"
+                                >
+                                    ← {subStep === 0 ? "Back to Profile" : "Previous Question"}
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        const currentId = KNOWLEDGE_BASE_QUESTIONS[subStep].id;
+                                        if (!(businessData as any)[currentId] && currentId !== 'commonQuestions') {
+                                            setError("Please provide an answer before continuing.");
+                                            return;
+                                        }
+                                        setError(null);
+                                        if (subStep < KNOWLEDGE_BASE_QUESTIONS.length - 1) {
+                                            setSubStep(s => s + 1);
+                                        } else {
+                                            setStep(3);
+                                        }
+                                    }}
+                                    className="bg-[var(--primary-color)] text-white px-10 py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20 active:scale-95"
+                                >
+                                    {subStep < KNOWLEDGE_BASE_QUESTIONS.length - 1 ? "Next Question →" : "Continue to WhatsApp →"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="animate-fadeIn">
+                            <div className="text-center mb-8">
+                                <h2 className="text-3xl font-black text-gray-900 mb-2">Connect WhatsApp</h2>
+                                <p className="text-gray-500">The final step: connect your Meta Business account to start messaging.</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100">
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                                            <svg className="w-6 h-6 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-800">Meta Embedded Signup</h4>
+                                            <p className="text-xs text-gray-500 italic">Official WhatsApp Integration</p>
+                                        </div>
+                                    </div>
+                                    <ul className="space-y-2 text-sm text-gray-600 mb-6">
+                                        <li className="flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                            Select your Business Manager
+                                        </li>
+                                        <li className="flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                            Link your Phone Number
+                                        </li>
+                                    </ul>
+                                    <MetaEmbeddedSignup
+                                        onSuccess={handleMetaSuccess}
+                                        onError={handleMetaError}
+                                    />
+                                </div>
+                                <button
+                                    onClick={() => setStep(2)}
+                                    className="w-full text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    ← Back to Knowledge Base
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 4 && (
                         <div className="animate-fadeIn">
                             <div className="text-center mb-8">
                                 <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-[var(--primary-color)] mx-auto mb-4">
@@ -183,44 +407,33 @@ function OnboardingContent() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                     </svg>
                                 </div>
-                                <h2 className="text-3xl font-black text-gray-900 mb-2">Connect Assets</h2>
-                                <p className="text-gray-500">Linking your Meta assets with your Soro account.</p>
+                                <h2 className="text-3xl font-black text-gray-900 mb-2">Account Ready!</h2>
+                                <p className="text-gray-500">Your profile is complete and WhatsApp is linked.</p>
                             </div>
 
-                            <section className="bg-blue-50/50 p-6 rounded-[2rem] border border-blue-100 mb-8">
-                                <div className="flex items-center gap-3 mb-6 bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
-                                    <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Status</p>
-                                        <p className="text-sm font-bold text-gray-800">Meta Account Linked</p>
-                                    </div>
-                                </div>
-
+                            <section className="bg-blue-50/50 p-6 rounded-[2rem] border border-blue-100 mb-8 max-h-[400px] overflow-y-auto">
                                 <div className="space-y-4">
                                     <div className="p-4 bg-white rounded-2xl border border-blue-100 shadow-sm">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">WhatsApp Business Account ID</p>
-                                        <p className="text-sm font-mono text-gray-800 break-all">{whatsappConfig.wabaId || "Successfully Captured"}</p>
+                                        <p className="text-[10px] font-extrabold text-gray-400 uppercase">Business Profile</p>
+                                        <p className="text-sm font-bold text-gray-800">{businessData.name}</p>
+                                        <p className="text-xs text-gray-500">{businessData.type}</p>
                                     </div>
 
                                     <div className="p-4 bg-white rounded-2xl border border-blue-100 shadow-sm">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase">Phone Number ID</p>
-                                        <p className="text-sm font-mono text-gray-800 break-all">{whatsappConfig.phoneNumberId || "Successfully Captured"}</p>
+                                        <p className="text-[10px] font-extrabold text-gray-400 uppercase">WhatsApp Connection</p>
+                                        <p className="text-xs text-gray-500 font-mono">WABA: {whatsappConfig.wabaId}</p>
+                                        <p className="text-xs text-gray-500 font-mono">Phone: {whatsappConfig.phoneNumberId}</p>
                                     </div>
 
-                                    <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-100">
-                                        <div className="flex items-center gap-2 text-green-700 mb-1">
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                            </svg>
-                                            <span className="text-xs font-bold">Permissions Granted</span>
+                                    <div className="p-4 bg-white rounded-2xl border border-blue-100 shadow-sm">
+                                        <p className="text-[10px] font-extrabold text-gray-400 uppercase">Knowledge Base</p>
+                                        <div className="mt-2 space-y-2">
+                                            {['whatYouOffer', 'pricing', 'availability'].map(key => (
+                                                <div key={key} className="text-[11px] text-gray-600">
+                                                    <span className="font-bold opacity-50">{key}:</span> {(businessData as any)[key].substring(0, 50)}...
+                                                </div>
+                                            ))}
                                         </div>
-                                        <p className="text-[10px] text-green-600 font-medium">
-                                            whatsapp_business_management, whatsapp_business_messaging
-                                        </p>
                                     </div>
                                 </div>
                             </section>

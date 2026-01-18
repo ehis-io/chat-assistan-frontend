@@ -17,10 +17,21 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Check if user is already authenticated
+    import("@/lib/utils/auth").then(({ isAuthenticated, isAdmin }) => {
+      if (isAuthenticated()) {
+        if (isAdmin()) {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
+      }
+    });
+
     if (searchParams.get("registered") === "true") {
       setSuccess("Account created successfully! Please sign in.");
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

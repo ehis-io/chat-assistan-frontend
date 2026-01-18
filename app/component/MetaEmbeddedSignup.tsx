@@ -7,7 +7,8 @@ import {
     loginWithPermissions,
     fetchBusinesses,
     fetchWabasForBusiness,
-    fetchPhoneNumbers
+    fetchPhoneNumbers,
+    linkWhatsAppBusinessInBackend
 } from "@/lib/utils/metaSdk";
 
 interface MetaEmbeddedSignupProps {
@@ -33,25 +34,39 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
-            if (
-                event.origin !== "https://www.facebook.com" &&
-                event.origin !== "https://web.facebook.com"
-            ) return;
+            const allowedOrigins = [
+                "https://www.facebook.com",
+                "https://web.facebook.com",
+                "https://business.facebook.com"
+            ];
+
+            if (!allowedOrigins.includes(event.origin)) return;
 
             try {
                 const payload = typeof event.data === "string"
                     ? JSON.parse(event.data)
                     : event.data;
 
-                if (payload.type === "WA_EMBEDDED_SIGNUP_SUCCESS" && payload.data) {
-                    onSuccess({
-                        code: payload.data.code,
-                        waba_id: payload.data.waba_id,
-                        phone_number_id: payload.data.phone_number_id
-                    });
+                console.log('Received Message from Meta:', payload);
+
+                const isSuccess = payload.type === "WA_EMBEDDED_SIGNUP_SUCCESS" || payload.type === "WA_EMBEDDED_SIGNUP";
+
+                if (isSuccess) {
+                    const data = payload.data || payload.params || payload;
+
+                    if (data.code || data.waba_id) {
+                        console.log('Meta Embedded Signup Success Data Captured:', data);
+                        onSuccess({
+                            code: data.code || `SDK_${Date.now()}`,
+                            waba_id: data.waba_id || "",
+                            phone_number_id: data.phone_number_id || ""
+                        });
+                        return;
+                    }
                 }
 
-                if (payload.type === "WA_EMBEDDED_SIGNUP_ERROR") {
+                if (payload.type === "WA_EMBEDDED_SIGNUP_ERROR" || (payload.error_message && !isSuccess)) {
+                    console.error('Meta Embedded Signup Error Payload:', payload);
                     onError(payload.error_message || "Meta signup failed");
                 }
             } catch {
@@ -68,47 +83,36 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
     const handleConnect = async () => {
         setIsLoading(true);
         try {
+            console.log('Starting Meta Embedded Signup flow...');
             await loadMetaSdk(appId);
-            await launchEmbeddedSignup();
+            const response = await launchEmbeddedSignup();
+
+            if (response?.authResponse?.accessToken) {
+                console.log('Meta Login Success, linking in backend...');
+                await linkWhatsAppBusinessInBackend(response.authResponse.accessToken);
+                console.log('WhatsApp Business successfully linked in backend');
+            } else {
+                console.warn('Meta Login completed but no access token was found in authResponse');
+            }
         } catch (err: any) {
+            console.error('Error in handleConnect:', err);
             onError(err.message || "Failed to launch Meta embedded signup");
         } finally {
             setIsLoading(false);
         }
     };
 
-    /* ================= MANUAL FLOW ================= */
-
-    const handleManualLogin = async () => {
-        setIsLoading(true);
-        try {
-            await loadMetaSdk(appId);
-
-            const auth: any = await loginWithPermissions([
-                "whatsapp_business_management",
-                "whatsapp_business_messaging",
-                "business_management"
-            ]);
-
-            setAccessToken(auth.accessToken);
-
-            const biz = await fetchBusinesses(auth.accessToken);
-            setBusinesses(biz);
-            setIsManual(true);
-        } catch (err: any) {
-            onError(err.message || "Manual login failed");
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const handleBusinessSelect = async (businessId: string) => {
+        console.log('Selected Business:', businessId);
         setSelectedBusiness(businessId);
         setIsLoading(true);
         try {
             const wabas = await fetchWabasForBusiness(businessId, accessToken);
+            console.log('Fetched WABAs for business:', wabas);
             setWabas(wabas);
         } catch (err: any) {
+            console.error('Error fetching WABAs:', err);
             onError(err.message || "Failed to fetch WABAs");
         } finally {
             setIsLoading(false);
@@ -116,12 +120,15 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
     };
 
     const handleWabaSelect = async (wabaId: string) => {
+        console.log('Selected WABA:', wabaId);
         setSelectedWaba(wabaId);
         setIsLoading(true);
         try {
             const numbers = await fetchPhoneNumbers(wabaId, accessToken);
+            console.log('Fetched Phone Numbers for WABA:', numbers);
             setPhoneNumbers(numbers);
         } catch (err: any) {
+            console.error('Error fetching phone numbers:', err);
             onError(err.message || "Failed to fetch phone numbers");
         } finally {
             setIsLoading(false);
@@ -129,6 +136,7 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
     };
 
     const handleNumberSelect = (phoneNumberId: string) => {
+        console.log('Selected Phone Number:', phoneNumberId);
         onSuccess({
             code: `MANUAL_${Date.now()}`,
             waba_id: selectedWaba,
@@ -267,22 +275,9 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
                 <span>{isLoading ? "Launching Meta flow..." : "Connect WhatsApp Account"}</span>
             </button>
 
-            <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t border-gray-100"></div>
-                <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">or</span>
-                <div className="flex-grow border-t border-gray-100"></div>
-            </div>
 
-            <button
-                onClick={handleManualLogin}
-                disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 bg-white text-gray-600 border border-gray-100 py-4 px-6 rounded-2xl font-bold hover:bg-gray-50 hover:border-gray-200 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
-            >
-                <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16l2.879-2.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Select Existing Assets (Manual)
-            </button>
+
+
         </div>
     );
 }
