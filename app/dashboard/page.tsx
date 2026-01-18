@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import DashboardSidebar from "../component/DashboardSidebar";
 import ChatWindow from "../component/ChatWindow";
 import ChatAnalysis from "../component/ChatAnalysis";
-import { loadMetaSdk, launchEmbeddedSignup } from "@/lib/utils/metaSdk";
+import { loadMetaSdk, launchEmbeddedSignup, linkWhatsAppBusinessInBackend } from "@/lib/utils/metaSdk";
 
 // Mock data
 const mockChats = [
@@ -136,7 +136,8 @@ function DashboardContent() {
             const response = await launchEmbeddedSignup();
             console.log("Meta Link response:", response);
 
-            if (response.authResponse) {
+            if (response.authResponse?.accessToken) {
+                await linkWhatsAppBusinessInBackend(response.authResponse.accessToken);
                 setMetaConnected(true);
             }
         } catch (err: any) {

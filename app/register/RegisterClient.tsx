@@ -28,12 +28,23 @@ export default function RegisterClient() {
     const [planDetail, setPlanDetail] = useState<{ name: string; ref?: string } | null>(null);
 
     useEffect(() => {
+        // Check if user is already authenticated
+        import("@/lib/utils/auth").then(({ isAuthenticated, isAdmin }) => {
+            if (isAuthenticated()) {
+                if (isAdmin()) {
+                    router.push("/admin");
+                } else {
+                    router.push("/dashboard");
+                }
+            }
+        });
+
         const plan = searchParams.get("plan");
         const ref = searchParams.get("payment_ref");
         if (plan) {
             setPlanDetail({ name: plan, ref: ref || undefined });
         }
-    }, [searchParams]);
+    }, [searchParams, router]);
 
     function formatDOB(date: Date | null) {
         if (!date) return "";
