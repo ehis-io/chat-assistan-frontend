@@ -45,10 +45,11 @@ export default function AuthGuard({ children, requireAuth = true, requireAdmin =
                 // Check if user has a business but hasn't linked WhatsApp
                 const info = getUserInfo();
                 const business = info?.business || info?.business_id;
-                const isMetaConnected = business?.whatsapp_business_id || business?.waba_id;
+                // Strict check for CONNECTED status
+                const isMetaConnected = business?.whatsapp_status === 'CONNECTED';
 
                 if (business && !isMetaConnected && !requireAdmin) {
-                    // Regular user with business but no WhatsApp link, redirect to onboarding
+                    // Regular user with business but WhatsApp is not CONNECTED, redirect to onboarding
                     router.push('/onboarding?step=whatsapp_required');
                     return;
                 }
