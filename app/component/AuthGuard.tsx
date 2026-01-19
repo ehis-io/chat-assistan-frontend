@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, isAdmin, logout } from "@/lib/utils/auth";
+import { isAuthenticated, isAdmin, logout, getUserInfo } from "@/lib/utils/auth";
 
 interface AuthGuardProps {
     children: React.ReactNode;
@@ -40,6 +40,17 @@ export default function AuthGuard({ children, requireAuth = true, requireAdmin =
                         router.push('/dashboard?error=access_denied');
                         return;
                     }
+                }
+
+                // Check if user has a business but hasn't linked WhatsApp
+                const info = getUserInfo();
+                const business = info?.business || info?.business_id;
+                const isMetaConnected = business?.whatsapp_business_id || business?.waba_id;
+
+                if (business && !isMetaConnected && !requireAdmin) {
+                    // Regular user with business but no WhatsApp link, redirect to onboarding
+                    router.push('/onboarding?step=whatsapp_required');
+                    return;
                 }
 
                 setIsAuthorized(true);

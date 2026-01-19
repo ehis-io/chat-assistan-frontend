@@ -189,7 +189,7 @@ export const linkWhatsAppBusinessInBackend = async (shortLivedToken: string): Pr
 
   console.log('Linking WhatsApp Business in backend with token:', shortLivedToken);
   
-  const response = await fetch(`${baseUrl}/business/link-whatsapp-business`, {
+  const response = await fetch(`${baseUrl}/user/link-whatsapp-business`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -201,6 +201,45 @@ export const linkWhatsAppBusinessInBackend = async (shortLivedToken: string): Pr
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.message || 'Failed to link WhatsApp Business account');
+  }
+
+  return await response.json();
+};
+
+/**
+ * Update the business profile and knowledge base in the backend
+ * @param businessData The collected business data
+ * @returns Response from the backend
+ */
+export const updateBusinessInBackend = async (businessData: any): Promise<any> => {
+  const { getToken, getUserInfo } = require('./auth');
+  const token = getToken();
+  const userInfo = getUserInfo();
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+
+  if (!token) {
+    throw new Error('User is not authenticated');
+  }
+
+  // Use business ID from user info if available, otherwise it might be a new business creation
+  const businessId = userInfo?.business?.id || userInfo?.business_id;
+  const endpoint = businessId ? `${baseUrl}/business/${businessId}` : `${baseUrl}/user/create-business`;
+  const method = businessId ? 'PATCH' : 'POST';
+
+  console.log(`Updating business in backend (${method} ${endpoint}) with data:`, businessData);
+  
+  const response = await fetch(endpoint, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(businessData)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to update business data');
   }
 
   return await response.json();

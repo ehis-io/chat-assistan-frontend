@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../component/Navbar";
 import Footer from "../component/Footer";
 import dynamic from "next/dynamic";
+import { updateBusinessInBackend } from "@/lib/utils/metaSdk";
 
 const MetaEmbeddedSignup = dynamic(() => import("../component/MetaEmbeddedSignup"), { ssr: false });
 
@@ -17,10 +18,11 @@ function OnboardingContent() {
     const [plan, setPlan] = useState<string | null>(null);
     const [paymentRef, setPaymentRef] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const [businessData, setBusinessData] = useState({
         name: "",
-        type: "E_COMMERCE" as any, // BusinessType enum
+        type: "ECOMMERCE" as any, // BusinessType enum
         description: "",
         whatYouOffer: "",
         contactInfo: "",
@@ -30,6 +32,20 @@ function OnboardingContent() {
         policies: "",
         commonQuestions: ""
     });
+
+    const handleSaveBusiness = async () => {
+        setIsSaving(true);
+        setError(null);
+        try {
+            await updateBusinessInBackend(businessData);
+            setStep(3);
+        } catch (err: any) {
+            console.error("Failed to save business data:", err);
+            setError(err.message || "Failed to save business data. Please try again.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const [whatsappConfig, setWhatsappConfig] = useState({
         wabaId: "",
@@ -45,6 +61,23 @@ function OnboardingContent() {
             setPlan(p);
             setPaymentRef(r);
             setStep(0); // Show partner welcome step
+        }
+
+        const { getUserInfo } = require("@/lib/utils/auth");
+        const info = getUserInfo();
+        const biz = info?.business || info?.business_id;
+
+        // If at the end but no business data, go back to step 1
+        if (step >= 2 && !biz) {
+            setStep(1);
+            return;
+        }
+
+        // If at step 4 but no WhatsApp ID, go back to step 3
+        if (step === 4 && !whatsappConfig.wabaId && !biz?.whatsapp_business_id) {
+            setStep(3);
+            setError("Please link your WhatsApp account before finishing setup.");
+            return;
         }
 
         if (searchParams.get("meta_connected") === "true") {
@@ -128,6 +161,16 @@ function OnboardingContent() {
     };
 
     const handleComplete = () => {
+        const { getUserInfo } = require("@/lib/utils/auth");
+        const info = getUserInfo();
+        const hasWaba = whatsappConfig.wabaId || info?.business?.whatsapp_business_id || info?.business?.waba_id;
+
+        if (!hasWaba) {
+            setError("WhatsApp connection is required to enter the dashboard.");
+            setStep(3);
+            return;
+        }
+
         router.push("/dashboard");
     };
 
@@ -239,10 +282,18 @@ function OnboardingContent() {
                                         onChange={handleInputChange}
                                         className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                                     >
-                                        <option value="E_COMMERCE">E-commerce & Retail</option>
+                                        <option value="ECOMMERCE">E-commerce & Retail</option>
                                         <option value="REAL_ESTATE">Real Estate</option>
                                         <option value="EDUCATION">Education</option>
                                         <option value="HEALTHCARE">Healthcare</option>
+                                        <option value="FINANCE">Finance</option>
+                                        <option value="TECHNOLOGY">Technology</option>
+                                        <option value="HOSPITALITY">Hospitality</option>
+                                        <option value="SERVICES">Services</option>
+                                        <option value="RESTAURANT">Restaurant</option>
+                                        <option value="RETAIL">Retail</option>
+                                        <option value="ARTISAN">Artisan</option>
+                                        <option value="OTHER">Other</option>
                                     </select>
                                 </div>
                                 <div>
@@ -343,12 +394,20 @@ function OnboardingContent() {
                                         if (subStep < KNOWLEDGE_BASE_QUESTIONS.length - 1) {
                                             setSubStep(s => s + 1);
                                         } else {
-                                            setStep(3);
+                                            handleSaveBusiness();
                                         }
                                     }}
-                                    className="bg-[var(--primary-color)] text-white px-10 py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20 active:scale-95"
+                                    disabled={isSaving}
+                                    className="bg-[var(--primary-color)] text-white px-10 py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
-                                    {subStep < KNOWLEDGE_BASE_QUESTIONS.length - 1 ? "Next Question →" : "Continue to WhatsApp →"}
+                                    {isSaving ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        subStep < KNOWLEDGE_BASE_QUESTIONS.length - 1 ? "Next Question →" : "Continue to WhatsApp →"
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -440,7 +499,8 @@ function OnboardingContent() {
 
                             <button
                                 onClick={handleComplete}
-                                className="w-full bg-[var(--primary-color)] text-white py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20"
+                                disabled={!whatsappConfig.wabaId && !businessData.name}
+                                className="w-full bg-[var(--primary-color)] text-white py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Finish Setup & Enter Dashboard
                             </button>
@@ -451,6 +511,7 @@ function OnboardingContent() {
         </div>
     );
 }
+
 
 export default function Onboarding() {
     return (
