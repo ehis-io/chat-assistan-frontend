@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../component/Navbar";
 import Footer from "../component/Footer";
 import dynamic from "next/dynamic";
+import { updateBusinessInBackend, BusinessData } from "@/lib/utils/metaSdk";
 
 const MetaEmbeddedSignup = dynamic(() => import("../component/MetaEmbeddedSignup"), { ssr: false });
 
@@ -17,10 +18,11 @@ function OnboardingContent() {
     const [plan, setPlan] = useState<string | null>(null);
     const [paymentRef, setPaymentRef] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
-    const [businessData, setBusinessData] = useState({
+    const [businessData, setBusinessData] = useState<BusinessData>({
         name: "",
-        type: "E_COMMERCE" as any, // BusinessType enum
+        type: "ECOMMERCE",
         description: "",
         whatYouOffer: "",
         contactInfo: "",
@@ -30,6 +32,20 @@ function OnboardingContent() {
         policies: "",
         commonQuestions: ""
     });
+
+    const handleSaveBusiness = async () => {
+        setIsSaving(true);
+        setError(null);
+        try {
+            await updateBusinessInBackend(businessData);
+            setStep(3);
+        } catch (err: any) {
+            // console.error("Failed to save business data:", err);
+            setError(err.message || "Failed to save business data. Please try again.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const [whatsappConfig, setWhatsappConfig] = useState({
         wabaId: "",
@@ -45,6 +61,45 @@ function OnboardingContent() {
             setPlan(p);
             setPaymentRef(r);
             setStep(0); // Show partner welcome step
+        }
+
+        const { getUserInfo } = require("@/lib/utils/auth");
+        const info = getUserInfo();
+        const biz = info?.business || info?.business_id;
+
+        // If business exists, populate state and skip to step 3 (if not already further)
+        if (biz) {
+            setBusinessData(prev => ({
+                ...prev,
+                name: biz.name || prev.name,
+                type: biz.type || prev.type,
+                description: biz.description || prev.description,
+                // Populate other fields if they exist in the user object
+                whatYouOffer: biz.knowledge_base?.whatYouOffer || prev.whatYouOffer,
+                contactInfo: biz.knowledge_base?.contactInfo || prev.contactInfo,
+                availability: biz.knowledge_base?.availability || prev.availability,
+                pricing: biz.knowledge_base?.pricing || prev.pricing,
+                deliveryOptions: biz.knowledge_base?.deliveryOptions || prev.deliveryOptions,
+                policies: biz.knowledge_base?.policies || prev.policies,
+                commonQuestions: biz.knowledge_base?.commonQuestions || prev.commonQuestions,
+            }));
+
+            // Only auto-advance if we're at the start and not already connected
+            if (step < 3 && !searchParams.get("meta_connected")) {
+                setStep(3);
+                return;
+            }
+        } else if (step >= 2) {
+            // If at the end but no business data, go back to step 1
+            setStep(1);
+            return;
+        }
+
+        // If at step 4 but WhatsApp status is not CONNECTED, go back to step 3
+        if (step === 4 && biz?.whatsapp_status !== 'CONNECTED') {
+            setStep(3);
+            setError("Please link your WhatsApp account before finishing setup.");
+            return;
         }
 
         if (searchParams.get("meta_connected") === "true") {
@@ -120,7 +175,8 @@ function OnboardingContent() {
         setMetaConnected(true);
         setStep(4);
         setError(null);
-        console.log("Onboarding: Meta Data Captured", data);
+        setStep(4);
+        setError(null);
     };
 
     const handleMetaError = (err: string) => {
@@ -128,6 +184,17 @@ function OnboardingContent() {
     };
 
     const handleComplete = () => {
+        const { getUserInfo } = require("@/lib/utils/auth");
+        const info = getUserInfo();
+        const biz = info?.business || info?.business_id;
+        const isConnected = biz?.whatsapp_status === 'CONNECTED';
+
+        if (!isConnected) {
+            setError("WhatsApp connection is required to enter the dashboard.");
+            setStep(3);
+            return;
+        }
+
         router.push("/dashboard");
     };
 
@@ -239,10 +306,18 @@ function OnboardingContent() {
                                         onChange={handleInputChange}
                                         className="w-full rounded-2xl border border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] outline-none transition-all"
                                     >
-                                        <option value="E_COMMERCE">E-commerce & Retail</option>
+                                        <option value="ECOMMERCE">E-commerce & Retail</option>
                                         <option value="REAL_ESTATE">Real Estate</option>
                                         <option value="EDUCATION">Education</option>
                                         <option value="HEALTHCARE">Healthcare</option>
+                                        <option value="FINANCE">Finance</option>
+                                        <option value="TECHNOLOGY">Technology</option>
+                                        <option value="HOSPITALITY">Hospitality</option>
+                                        <option value="SERVICES">Services</option>
+                                        <option value="RESTAURANT">Restaurant</option>
+                                        <option value="RETAIL">Retail</option>
+                                        <option value="ARTISAN">Artisan</option>
+                                        <option value="OTHER">Other</option>
                                     </select>
                                 </div>
                                 <div>
@@ -343,12 +418,20 @@ function OnboardingContent() {
                                         if (subStep < KNOWLEDGE_BASE_QUESTIONS.length - 1) {
                                             setSubStep(s => s + 1);
                                         } else {
-                                            setStep(3);
+                                            handleSaveBusiness();
                                         }
                                     }}
-                                    className="bg-[var(--primary-color)] text-white px-10 py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20 active:scale-95"
+                                    disabled={isSaving}
+                                    className="bg-[var(--primary-color)] text-white px-10 py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
-                                    {subStep < KNOWLEDGE_BASE_QUESTIONS.length - 1 ? "Next Question →" : "Continue to WhatsApp →"}
+                                    {isSaving ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        subStep < KNOWLEDGE_BASE_QUESTIONS.length - 1 ? "Next Question →" : "Continue to WhatsApp →"
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -440,7 +523,8 @@ function OnboardingContent() {
 
                             <button
                                 onClick={handleComplete}
-                                className="w-full bg-[var(--primary-color)] text-white py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20"
+                                disabled={!whatsappConfig.wabaId && !businessData.name}
+                                className="w-full bg-[var(--primary-color)] text-white py-4 rounded-2xl font-bold hover:bg-[var(--accent-color)] transition-all shadow-xl shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Finish Setup & Enter Dashboard
                             </button>
@@ -451,6 +535,7 @@ function OnboardingContent() {
         </div>
     );
 }
+
 
 export default function Onboarding() {
     return (

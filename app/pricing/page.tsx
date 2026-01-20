@@ -4,8 +4,9 @@ import Navbar from "../component/Navbar";
 import Footer from "../component/Footer";
 import Link from "next/link";
 import PaystackInline from "../component/PaystackInline";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getUserInfo } from "@/lib/utils/auth";
 
 const pricingTiers = [
     {
@@ -14,10 +15,8 @@ const pricingTiers = [
         price: "0",
         description: "Perfect for testing and small personal projects.",
         features: [
-            "Up to 50 messages/month",
+            "Up to 5 messages/month",
             "Basic AI assistance",
-            "1 WhatsApp Business account",
-            "Community support",
         ],
         buttonText: "Get Started",
         highlight: false,
@@ -30,7 +29,6 @@ const pricingTiers = [
         features: [
             "Unlimited messages",
             "Advanced AI capabilities",
-            "Up to 5 Business accounts",
             "Priority email support",
             "Custom message templates",
             "Detailed analytics",
@@ -45,7 +43,6 @@ const pricingTiers = [
         description: "Scalable solutions for large organizations.",
         features: [
             "Dedicated AI training",
-            "Unlimited Business accounts",
             "24/7 Phone & Zoom support",
             "Custom API integrations",
             "SLA guarantees",
@@ -59,6 +56,14 @@ const pricingTiers = [
 export default function Pricing() {
     const router = useRouter();
     const [successPayment, setSuccessPayment] = useState(false);
+    const [userEmail, setUserEmail] = useState("customer@example.com");
+
+    useEffect(() => {
+        const userInfo = getUserInfo();
+        if (userInfo && userInfo.email) {
+            setUserEmail(userInfo.email);
+        }
+    }, []);
 
     const handlePaymentSuccess = (reference: any) => {
         console.log("Payment successful", reference);
@@ -135,9 +140,10 @@ export default function Pricing() {
 
                                 {tier.id === "pro" ? (
                                     <PaystackInline
-                                        email="customer@example.com"
+                                        email={userEmail}
                                         amount={Number(tier.price)}
                                         label={tier.buttonText}
+                                        planCode={process.env.NEXT_PUBLIC_PAYSTACK_PRO_PLAN_CODE}
                                         onSuccess={handlePaymentSuccess}
                                         onClose={() => console.log("Payment modal closed")}
                                     />

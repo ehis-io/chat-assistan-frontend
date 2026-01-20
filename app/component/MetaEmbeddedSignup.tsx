@@ -47,15 +47,12 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
                     ? JSON.parse(event.data)
                     : event.data;
 
-                console.log('Received Message from Meta:', payload);
-
                 const isSuccess = payload.type === "WA_EMBEDDED_SIGNUP_SUCCESS" || payload.type === "WA_EMBEDDED_SIGNUP";
 
                 if (isSuccess) {
                     const data = payload.data || payload.params || payload;
 
                     if (data.code || data.waba_id) {
-                        console.log('Meta Embedded Signup Success Data Captured:', data);
                         onSuccess({
                             code: data.code || `SDK_${Date.now()}`,
                             waba_id: data.waba_id || "",
@@ -66,7 +63,7 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
                 }
 
                 if (payload.type === "WA_EMBEDDED_SIGNUP_ERROR" || (payload.error_message && !isSuccess)) {
-                    console.error('Meta Embedded Signup Error Payload:', payload);
+                    // console.error('Meta Embedded Signup Error Payload:', payload);
                     onError(payload.error_message || "Meta signup failed");
                 }
             } catch {
@@ -83,14 +80,11 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
     const handleConnect = async () => {
         setIsLoading(true);
         try {
-            console.log('Starting Meta Embedded Signup flow...');
             await loadMetaSdk(appId);
             const response = await launchEmbeddedSignup();
 
             if (response?.authResponse?.accessToken) {
-                console.log('Meta Login Success, linking in backend...');
                 await linkWhatsAppBusinessInBackend(response.authResponse.accessToken);
-                console.log('WhatsApp Business successfully linked in backend');
             } else {
                 console.warn('Meta Login completed but no access token was found in authResponse');
             }
@@ -104,12 +98,10 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
 
 
     const handleBusinessSelect = async (businessId: string) => {
-        console.log('Selected Business:', businessId);
         setSelectedBusiness(businessId);
         setIsLoading(true);
         try {
             const wabas = await fetchWabasForBusiness(businessId, accessToken);
-            console.log('Fetched WABAs for business:', wabas);
             setWabas(wabas);
         } catch (err: any) {
             console.error('Error fetching WABAs:', err);
@@ -120,12 +112,10 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
     };
 
     const handleWabaSelect = async (wabaId: string) => {
-        console.log('Selected WABA:', wabaId);
         setSelectedWaba(wabaId);
         setIsLoading(true);
         try {
             const numbers = await fetchPhoneNumbers(wabaId, accessToken);
-            console.log('Fetched Phone Numbers for WABA:', numbers);
             setPhoneNumbers(numbers);
         } catch (err: any) {
             console.error('Error fetching phone numbers:', err);
@@ -136,7 +126,6 @@ export default function MetaEmbeddedSignup({ onSuccess, onError }: MetaEmbeddedS
     };
 
     const handleNumberSelect = (phoneNumberId: string) => {
-        console.log('Selected Phone Number:', phoneNumberId);
         onSuccess({
             code: `MANUAL_${Date.now()}`,
             waba_id: selectedWaba,
