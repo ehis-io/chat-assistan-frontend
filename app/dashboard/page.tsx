@@ -177,7 +177,6 @@ function DashboardContent() {
                         activeChat={activeChat}
                         onSelectChat={handleSelectChat}
                         onShowAnalysis={handleShowAnalysis}
-                        onMetaLink={handleMetaLink}
                     />
                 </div>
 

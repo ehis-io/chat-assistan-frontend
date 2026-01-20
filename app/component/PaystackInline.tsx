@@ -9,6 +9,7 @@ interface PaystackProps {
     onSuccess: (reference: any) => void;
     onClose: () => void;
     label?: string;
+    planCode?: string; // Optional plan code for subscriptions
 }
 
 declare global {
@@ -17,7 +18,7 @@ declare global {
     }
 }
 
-export default function PaystackInline({ email, amount, metadata, onSuccess, onClose, label = "Pay Now" }: PaystackProps) {
+export default function PaystackInline({ email, amount, metadata, onSuccess, onClose, label = "Pay Now", planCode }: PaystackProps) {
     const [scriptLoaded, setScriptLoaded] = useState(false);
 
     useEffect(() => {
@@ -38,26 +39,30 @@ export default function PaystackInline({ email, amount, metadata, onSuccess, onC
             return;
         }
 
-        const handler = window.PaystackPop.setup({
-            key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_xxxxxxxxxxxxxxxxxxxxxxxx", // Replace with your public key
+        const config: any = {
+            key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_xxxxxxxxxxxxxxxxxxxxxxxx",
             email: email,
             amount: amount * 100, // Amount is in Kobo
             currency: "NGN",
-            ref: '' + Math.floor((Math.random() * 1000000000) + 1), // generates a pseudo-unique reference. Please replace with a reference you generated on your server
-            metadata: metadata,
+            ref: '' + Math.floor((Math.random() * 1000000000) + 1),
+            metadata: {
+                ...metadata,
+                subscription: planCode ? true : false,
+            },
             callback: function (response: any) {
-                // message: "Approved"
-                // reference: "123456789"
-                // status: "success"
-                // trans: "123456789"
-                // transaction: "123456789"
                 onSuccess(response);
             },
             onClose: function () {
                 onClose();
             }
-        });
+        };
 
+        // Add plan code if provided (for subscriptions)
+        if (planCode) {
+            config.plan = planCode;
+        }
+
+        const handler = window.PaystackPop.setup(config);
         handler.openIframe();
     };
 
