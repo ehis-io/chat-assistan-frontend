@@ -195,3 +195,52 @@ export function isAdmin(): boolean {
     const roleLower = userRole.toLowerCase();
     return roleLower === 'admin' || roleLower === 'super_admin';
 }
+
+/**
+ * Check if user has a valid active payment/subscription
+ * Returns an object with hasValidPayment flag and optional error message
+ */
+export async function checkPaymentStatus(): Promise<{ hasValidPayment: boolean; error?: string }> {
+    try {
+        const token = getToken();
+        if (!token || isTokenExpired(token)) {
+            return { hasValidPayment: false, error: 'Not authenticated' };
+        }
+        
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+        const response = await fetch(`${baseUrl}/payment/status`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            // If the endpoint doesn't exist or returns error, assume no valid payment
+            console.warn('Payment status check failed:', response.statusText);
+            return { hasValidPayment: false };
+        }
+        
+        const data = await response.json();
+        return { 
+            hasValidPayment: data.hasValidPayment || data.isActive || false 
+        };
+    } catch (error) {
+        console.error('Error checking payment status:', error);
+        return { hasValidPayment: false, error: 'Failed to check payment status' };
+    }
+}
+
+/**
+ * Check if user has business setup complete
+ * Returns true if user has business configured in their account
+ */
+export function hasBusinessSetup(): boolean {
+    const userInfo = getUserInfo();
+    if (!userInfo) return false;
+    
+    // Check if business exists in user info
+    const business = userInfo.business || userInfo.business_id;
+    return !!business;
+}

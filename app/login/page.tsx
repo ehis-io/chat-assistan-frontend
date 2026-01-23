@@ -80,7 +80,7 @@ function LoginForm() {
           router.push("/admin");
         } else {
           // Regular users: check for business
-          const hasBusiness = data.user?.business || data.business || data.business_id;
+          const hasBusiness = data.user?.business?.whatsappBusiness_id;
 
           if (hasBusiness) {
             router.push("/dashboard");
