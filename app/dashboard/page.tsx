@@ -2,19 +2,29 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+
+import { useRouter } from 'next/navigation';
 import DashboardSidebar from "../component/DashboardSidebar";
 import ChatWindow from "../component/ChatWindow";
-import ChatAnalysis from "../component/ChatAnalysis";
+import ChatAnalysis, { Message as AnalysisMessage } from "../component/ChatAnalysis";
 import { loadMetaSdk, launchEmbeddedSignup, linkWhatsAppBusinessInBackend } from "@/lib/utils/metaSdk";
 
 // Mock data removed
+
+interface Message {
+    id: string;
+    text: string;
+    sender: "user" | "contact";
+    timestamp: string;
+    status?: "sent" | "delivered" | "read";
+}
 
 function DashboardContent() {
     const searchParams = useSearchParams();
     const router = useRouter(); // Added router for redirects if needed
     const [activeChat, setActiveChat] = useState<string | null>(null);
     const [chats, setChats] = useState<any[]>([]);
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [showAnalysis, setShowAnalysis] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [metaConnected, setMetaConnected] = useState(false);
@@ -56,6 +66,7 @@ function DashboardContent() {
                     return {
                         id: c.id,
                         name: c.customer_name || c.customer_id,
+                        phoneNumber: c.customer_id, // Map customer_id (phone) so we can send messages
                         lastMessage: lastMsg?.content || "No messages",
                         timestamp: lastMsg?.timestamp ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "",
                         unread: 0, // TODO: Implement unread count
@@ -134,12 +145,12 @@ function DashboardContent() {
         if (!activeChat) return;
 
         // Optimistic update
-        const newItem = {
+        const newItem: Message = {
             id: Date.now().toString(),
             text: message,
             sender: "user",
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: "sending"
+            status: "sent"
         };
         setMessages(prev => [...prev, newItem]);
 
@@ -150,23 +161,12 @@ function DashboardContent() {
 
             // Find customer phone number from chat
             const currentChat = chats.find(c => c.id === activeChat);
-            // We need the phone number to send message. 
-            // NOTE: The current chat object mapped from conversation might not have phone number if we didn't include it. 
-            // In a real app we'd need customer_id (phone) from conversation.
-            // Let's assume customer_id is the phone number for now based on backend logic.
-            // Wait, conversation.customer_id is the phone number.
-            // We need to fetch the conversation details or store customer_id in chats map.
-            // Let's modify fetchChats mapping to include customer_id.
 
-            // Re-fetch or rely on optimistic update? 
-            // Ideally we call the API.
-
-            // Note: The backend sendMessage expects { phoneNumber, message }
-            // We don't have phoneNumber easily available unless we stored it in `chats`. 
-            // I'll update the `chats` mapping to include `phoneNumber` (customer_id).
-
-            // Temporary fix: we can't send without phone number. 
-            // I'll assume I can get it from the chat object.
+            if (!currentChat?.phoneNumber) {
+                console.error("No phone number found for chat", currentChat);
+                setErrorMessage("Cannot send message: Missing customer phone number");
+                return;
+            }
 
             await fetch(`${baseUrl}/chat/send-message`, {
                 method: 'POST',
@@ -175,11 +175,8 @@ function DashboardContent() {
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    phoneNumber: currentChat?.id, // Wait, ID is conversation ID. customer_id is phone. 
-                    // I need to update the chat mapping first to store customer_id. 
-                    // For now I'll just log or fail gracefully if missing.
-                    // Actually, let's fix the mapping in the fetchChats above to include customerId.
-                    // I will do that in the replacement content.
+                    phoneNumber: currentChat.phoneNumber,
+                    id: currentChat.id, // Conversation ID
                     message: message
                 })
             });
@@ -253,12 +250,12 @@ function DashboardContent() {
                     {showAnalysis ? (
                         <ChatAnalysis
                             chats={chats}
-                            allMessages={mockMessages}
+                            allMessages={{} as any} // Disable analysis feed for now as data structure mismatches
                         />
                     ) : activeChat && activeChatData ? (
                         <ChatWindow
                             chatName={activeChatData.name}
-                            messages={mockMessages[activeChat as keyof typeof mockMessages] || []}
+                            messages={messages}
                             onSendMessage={handleSendMessage}
                         />
                     ) : (

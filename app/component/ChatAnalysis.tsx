@@ -2,11 +2,29 @@
 
 import { useMemo } from "react";
 
-interface Message {
+export interface Message {
     id: string;
-    text: string;
-    sender: "user" | "contact";
-    timestamp: string;
+
+    conversation_id: string;
+    conversation?: Chat;
+    customer_name: string;
+
+    message_id: string;
+    content?: string
+
+    // message_type: MessageType;
+    timestamp: Date;
+
+    is_from_business: boolean;
+    ai_generated: boolean;
+
+    raw_payload?: Record<string, any> | null;
+
+    business_id?: string | null;
+    // business?: Business;
+
+    created_at: Date;
+    updated_at: Date;
 }
 
 interface Chat {
@@ -51,18 +69,18 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
             messages.forEach(msg => {
                 totalMessages++;
-                const words = msg.text.toLowerCase().split(/\s+/);
-                totalWords += words.length;
+                const words = msg.content?.toString().toLowerCase().split(/\s+/) || [];
+                totalWords += words?.length;
 
                 // Count emojis (simple detection)
                 const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
-                const emojis = msg.text.match(emojiRegex);
+                const emojis = msg.content?.toString().match(emojiRegex);
                 if (emojis) {
-                    if (msg.sender === 'user') emojiCount.user += emojis.length;
+                    if (msg.customer_name === 'user') emojiCount.user += emojis.length;
                     else emojiCount.contact += emojis.length;
                 }
 
-                if (msg.sender === 'user') {
+                if (msg.customer_name === 'user') {
                     userMessages++;
                 } else {
                     contactMessages++;
