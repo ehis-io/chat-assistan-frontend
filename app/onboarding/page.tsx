@@ -67,6 +67,17 @@ function OnboardingContent() {
         const info = getUserInfo();
         const biz = info?.business || info?.business_id;
 
+        // If business exists AND WhatsApp is connected, redirect to dashboard
+        if (biz && biz.whatsapp_status === 'CONNECTED') {
+            // If phone number ID is missing, keep at Step 3 to allow reconnection
+            if (!biz.whatsappPhoneNumberId && !biz.whatsapp_phone_number_id) {
+                setStep(3);
+                return;
+            }
+            router.push("/dashboard");
+            return;
+        }
+
         // If business exists, populate state and skip to step 3 (if not already further)
         if (biz) {
             setBusinessData(prev => ({
@@ -106,7 +117,7 @@ function OnboardingContent() {
             setMetaConnected(true);
             setStep(2); // Jump to WhatsApp connection step
         }
-    }, [searchParams]);
+    }, [searchParams, router]);
 
     const KNOWLEDGE_BASE_QUESTIONS = [
         {

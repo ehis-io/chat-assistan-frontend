@@ -20,7 +20,7 @@ interface ChatWindowProps {
 export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWindowProps) {
     const [inputMessage, setInputMessage] = useState("");
     const [showTemplates, setShowTemplates] = useState(false);
-    const [localMessages, setLocalMessages] = useState<Message[]>(messages);
+    // Removed localMessages state to rely on props (SSOT)
 
     const mockTemplates = [
         { id: "1", name: "welcome_message", text: "Hello! Welcome to our service. How can we help you today?", category: "UTILITY" },
@@ -30,40 +30,14 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
 
     const handleSend = () => {
         if (inputMessage.trim()) {
-            const newMessage: Message = {
-                id: Date.now().toString(),
-                text: inputMessage,
-                sender: "user",
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                status: "sent"
-            };
-            setLocalMessages([...localMessages, newMessage]);
             onSendMessage(inputMessage);
             setInputMessage("");
-
-            // Simulate delivery
-            setTimeout(() => {
-                setLocalMessages(prev => prev.map(m => m.id === newMessage.id ? { ...m, status: "delivered" } : m));
-            }, 1000);
         }
     };
 
     const handleSendTemplate = (template: typeof mockTemplates[0]) => {
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            text: template.text,
-            sender: "user",
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: "sent"
-        };
-        setLocalMessages([...localMessages, newMessage]);
         onSendMessage(template.text);
         setShowTemplates(false);
-
-        // Simulate delivery
-        setTimeout(() => {
-            setLocalMessages(prev => prev.map(m => m.id === newMessage.id ? { ...m, status: "delivered" } : m));
-        }, 1500);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -147,7 +121,7 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {localMessages.map((message) => (
+                {messages.map((message) => (
                     <div
                         key={message.id}
                         className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
