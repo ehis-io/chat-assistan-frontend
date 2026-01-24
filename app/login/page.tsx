@@ -18,12 +18,18 @@ function LoginForm() {
 
   useEffect(() => {
     // Check if user is already authenticated
-    import("@/lib/utils/auth").then(({ isAuthenticated, isAdmin }) => {
+    import("@/lib/utils/auth").then(({ isAuthenticated, isAdmin, getUserInfo }) => {
       if (isAuthenticated()) {
+        const userInfo = getUserInfo();
+        const biz = userInfo?.business || userInfo?.business_id;
+        const isConnected = biz && (biz.whatsapp_status === 'CONNECTED' || biz.status === 'CONNECTED');
+
         if (isAdmin()) {
           router.push("/admin");
-        } else {
+        } else if (isConnected) {
           router.push("/dashboard");
+        } else {
+          router.push("/onboarding");
         }
       }
     });
@@ -79,10 +85,11 @@ function LoginForm() {
           // Redirect SUPER_ADMIN to admin page
           router.push("/admin");
         } else {
-          // Regular users: check for business
-          const hasBusiness = data.user?.business?.whatsappBusiness_id;
+          // Regular users: check for business and its connection status
+          const biz = data.user?.business;
+          const isConnected = biz && (biz.whatsapp_status === 'CONNECTED' || biz.status === 'CONNECTED');
 
-          if (hasBusiness) {
+          if (isConnected) {
             router.push("/dashboard");
           } else {
             router.push("/onboarding");
