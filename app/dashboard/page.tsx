@@ -8,13 +8,14 @@ import DashboardSidebar from "../component/DashboardSidebar";
 import ChatWindow from "../component/ChatWindow";
 import ChatAnalysis, { Message as AnalysisMessage } from "../component/ChatAnalysis";
 import { loadMetaSdk, launchEmbeddedSignup, linkWhatsAppBusinessInBackend } from "@/lib/utils/metaSdk";
+import PdfKnowledgeUpload from "../component/PdfKnowledgeUpload";
 
 // Mock data removed
 
 interface Message {
     id: string;
     text: string;
-    sender: "user" | "contact";
+    sender: "user" | "contact" | "assistant";
     timestamp: string;
     status?: "sent" | "delivered" | "read";
 }
@@ -30,14 +31,25 @@ function DashboardContent() {
     const [metaConnected, setMetaConnected] = useState(false);
     const [business, setBusiness] = useState<any>(null);
     const [loadingChats, setLoadingChats] = useState(false);
+    const [hasPaid, setHasPaid] = useState(false);
+    const [checkingPayment, setCheckingPayment] = useState(true);
+    const [triggerUpload, setTriggerUpload] = useState(false);
 
     useEffect(() => {
-        const { getUserInfo } = require("@/lib/utils/auth");
+        const { getUserInfo, checkPaymentStatus } = require("@/lib/utils/auth");
         const info = getUserInfo();
         if (info && info.business) {
             setBusiness(info.business);
         }
         fetchChats();
+
+        // Check payment status
+        const verifyPayment = async () => {
+            const status = await checkPaymentStatus();
+            setHasPaid(status.hasValidPayment);
+            setCheckingPayment(false);
+        };
+        verifyPayment();
     }, []);
 
     useEffect(() => {
@@ -60,24 +72,12 @@ function DashboardContent() {
 
             if (res.ok) {
                 const data = await res.json();
-                // Map backend data to frontend format
-                const mappedChats = data.map((c: any) => {
-                    const lastMsg = c.messages?.[0];
-                    return {
-                        id: c.id,
-                        name: c.customer_name || c.customer_id,
-                        phoneNumber: c.customer_id, // Map customer_id (phone) so we can send messages
-                        lastMessage: lastMsg?.content || "No messages",
-                        timestamp: lastMsg?.timestamp ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "",
-                        unread: 0, // TODO: Implement unread count
-                        avatar: c.customer_name ? c.customer_name.substring(0, 2).toUpperCase() : "U"
-                    };
-                });
-                setChats(mappedChats);
+                // Backend already returns the correctly mapped DTOs
+                setChats(data);
 
                 // If no active chat and we have chats, select first
-                if (!activeChat && mappedChats.length > 0 && !showAnalysis) {
-                    setActiveChat(mappedChats[0].id);
+                if (!activeChat && data.length > 0 && !showAnalysis) {
+                    setActiveChat(data[0].id);
                 }
             }
         } catch (error) {
@@ -100,17 +100,8 @@ function DashboardContent() {
 
             if (res.ok) {
                 const data = await res.json();
-                // Map backend messages to frontend format
-                const mappedMessages = data.map((m: any) => ({
-                    id: m.id,
-                    text: m.content,
-                    sender: m.is_from_business ? "user" : "contact",
-                    timestamp: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    status: "sent" // Default status
-                }));
-                // Backend returns desc (newest first) usually, but we want chronological (asc)
-                // ChatService fetchMessages sorts asc, so we should be good.
-                setMessages(mappedMessages);
+                // Backend already returns the correctly mapped message DTOs
+                setMessages(data);
             }
         } catch (error) {
             console.error("Error fetching messages:", error);
@@ -157,6 +148,13 @@ function DashboardContent() {
         try {
             const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
+
+            if (!token) {
+                console.error("No authentication token found");
+                setErrorMessage("Authentication error: Please log in again");
+                return;
+            }
+
             const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
 
             // Find customer phone number from chat
@@ -168,7 +166,9 @@ function DashboardContent() {
                 return;
             }
 
-            await fetch(`${baseUrl}/chat/send-message`, {
+            console.log(`Sending message to ${currentChat.phoneNumber} (Chat ID: ${currentChat.id})`);
+
+            const response = await fetch(`${baseUrl}/chat/send-message`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -181,12 +181,21 @@ function DashboardContent() {
                 })
             });
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error("Failed to send message:", response.status, errorData);
+                throw new Error(errorData.message || `Server error: ${response.status}`);
+            }
+
+            console.log("Message sent successfully");
+
             // Refresh messages
             fetchMessages(activeChat);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to send message:", error);
-            setErrorMessage("Failed to send message");
+            setErrorMessage(`Failed to send message: ${error.message}`);
+            // Remove optimistic update if failed? Maybe later.
         }
     };
 
@@ -242,19 +251,55 @@ function DashboardContent() {
                         activeChat={activeChat}
                         onSelectChat={handleSelectChat}
                         onShowAnalysis={handleShowAnalysis}
+                        onUploadClick={() => setTriggerUpload(prev => !prev)} // Toggle trigger
                     />
                 </div>
 
                 {/* Main Chat Area */}
-                <div className="flex-1  justify-center  hidden md:flex">
+                <div className="flex-1 justify-center hidden md:flex overflow-hidden">
                     {showAnalysis ? (
-                        <ChatAnalysis
-                            chats={chats}
-                            allMessages={{} as any} // Disable analysis feed for now as data structure mismatches
-                        />
+                        <div className="flex flex-col w-full overflow-y-auto">
+                            {/* PDF Upload Section - Only if paid */}
+                            {hasPaid && (
+                                <div className="p-6 pb-0">
+                                    <PdfKnowledgeUpload
+                                        triggerUpload={triggerUpload}
+                                        onUploadTriggered={() => setTriggerUpload(false)} // Reset trigger immediately
+                                    />
+                                </div>
+                            )}
+                            {!hasPaid && !checkingPayment && (
+                                <div className="p-6 pb-0">
+                                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between">
+                                        <div className="flex items-center mb-4 md:mb-0">
+                                            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
+                                                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-indigo-900 font-semibold">Pro Feature: PDF Knowledge Base</h4>
+                                                <p className="text-indigo-700 text-sm">Upload custom PDFs to train your AI on your specific business knowledge.</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => router.push('/pricing')}
+                                            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md"
+                                        >
+                                            Upgrade Now
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <ChatAnalysis
+                                chats={chats}
+                                allMessages={{} as any}
+                            />
+                        </div>
                     ) : activeChat && activeChatData ? (
                         <ChatWindow
-                            chatName={activeChatData.name}
+                            chatName={activeChatData.name || "Unknown"}
                             messages={messages}
                             onSendMessage={handleSendMessage}
                         />

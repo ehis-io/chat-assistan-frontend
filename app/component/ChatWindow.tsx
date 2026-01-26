@@ -6,7 +6,7 @@ import Link from "next/link";
 interface Message {
     id: string;
     text: string;
-    sender: "user" | "contact";
+    sender: "user" | "contact" | "assistant";
     timestamp: string;
     status?: "sent" | "delivered" | "read";
 }
@@ -129,9 +129,19 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                         <div
                             className={`max-w-[75%] rounded-2xl px-5 py-3 shadow-sm ${message.sender === "user"
                                 ? "bg-[var(--primary-color)] text-white rounded-tr-none"
-                                : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
+                                : message.sender === "assistant"
+                                    ? "bg-blue-50 border border-blue-100 text-[var(--primary-color)] rounded-tl-none"
+                                    : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
                                 }`}
                         >
+                            {message.sender === "assistant" && (
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <svg className="w-3 h-3 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">AI Assistant</span>
+                                </div>
+                            )}
                             <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
                             <div className="flex items-center justify-end gap-1.5 mt-2">
                                 <span className={`text-[10px] ${message.sender === "user" ? "text-blue-100" : "text-gray-400"}`}>

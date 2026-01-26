@@ -222,7 +222,8 @@ export async function checkPaymentStatus(): Promise<{ hasValidPayment: boolean; 
             return { hasValidPayment: false };
         }
         
-        const data = await response.json();
+        const json = await response.json();
+        const data = json.data || {};
         return { 
             hasValidPayment: data.hasValidPayment || data.isActive || false 
         };
