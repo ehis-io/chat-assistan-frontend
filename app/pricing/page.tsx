@@ -29,6 +29,7 @@ const pricingTiers = [
         features: [
             "Unlimited messages",
             "Advanced AI capabilities",
+            "PDF Knowledge Base upload",
             "Priority email support",
             "Custom message templates",
             "Detailed analytics",
@@ -61,11 +62,8 @@ export default function Pricing() {
     const [checkingPayment, setCheckingPayment] = useState(true);
 
     useEffect(() => {
-        // Check if user is logged in and has business setup - redirect to dashboard
-        if (isAuthenticated() && hasBusinessSetup()) {
-            router.push("/dashboard");
-            return;
-        }
+        // ALLOW users to stay on pricing page even if authenticated/has business
+        // so they can upgrade to Pro.
 
         const userInfo = getUserInfo();
         if (userInfo && userInfo.email) {
@@ -80,7 +78,7 @@ export default function Pricing() {
         };
 
         fetchPaymentStatus();
-    }, [router]);
+    }, []);
 
     const handlePaymentSuccess = (reference: any) => {
         console.log("Payment successful", reference);

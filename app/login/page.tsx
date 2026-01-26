@@ -87,7 +87,7 @@ function LoginForm() {
         } else {
           // Regular users: check for business and its connection status
           const biz = data.user?.business;
-          const isConnected = biz && (biz.whatsapp_status === 'CONNECTED' || biz.status === 'CONNECTED');
+          const isConnected = biz && (biz.whatsapp_status === 'CONNECTED');
 
           if (isConnected) {
             router.push("/dashboard");

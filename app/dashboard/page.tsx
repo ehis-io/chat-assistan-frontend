@@ -8,6 +8,7 @@ import DashboardSidebar from "../component/DashboardSidebar";
 import ChatWindow from "../component/ChatWindow";
 import ChatAnalysis, { Message as AnalysisMessage } from "../component/ChatAnalysis";
 import { loadMetaSdk, launchEmbeddedSignup, linkWhatsAppBusinessInBackend } from "@/lib/utils/metaSdk";
+import PdfKnowledgeUpload from "../component/PdfKnowledgeUpload";
 
 // Mock data removed
 
@@ -30,14 +31,25 @@ function DashboardContent() {
     const [metaConnected, setMetaConnected] = useState(false);
     const [business, setBusiness] = useState<any>(null);
     const [loadingChats, setLoadingChats] = useState(false);
+    const [hasPaid, setHasPaid] = useState(false);
+    const [checkingPayment, setCheckingPayment] = useState(true);
+    const [triggerUpload, setTriggerUpload] = useState(false);
 
     useEffect(() => {
-        const { getUserInfo } = require("@/lib/utils/auth");
+        const { getUserInfo, checkPaymentStatus } = require("@/lib/utils/auth");
         const info = getUserInfo();
         if (info && info.business) {
             setBusiness(info.business);
         }
         fetchChats();
+
+        // Check payment status
+        const verifyPayment = async () => {
+            const status = await checkPaymentStatus();
+            setHasPaid(status.hasValidPayment);
+            setCheckingPayment(false);
+        };
+        verifyPayment();
     }, []);
 
     useEffect(() => {
@@ -242,19 +254,55 @@ function DashboardContent() {
                         activeChat={activeChat}
                         onSelectChat={handleSelectChat}
                         onShowAnalysis={handleShowAnalysis}
+                        onUploadClick={() => setTriggerUpload(prev => !prev)} // Toggle trigger
                     />
                 </div>
 
                 {/* Main Chat Area */}
-                <div className="flex-1  justify-center  hidden md:flex">
+                <div className="flex-1  justify-center  hidden md:flex overflow-hidden">
                     {showAnalysis ? (
-                        <ChatAnalysis
-                            chats={chats}
-                            allMessages={{} as any} // Disable analysis feed for now as data structure mismatches
-                        />
+                        <div className="flex flex-col w-full overflow-y-auto">
+                            {/* PDF Upload Section - Only if paid */}
+                            {hasPaid && (
+                                <div className="p-6 pb-0">
+                                    <PdfKnowledgeUpload
+                                        triggerUpload={triggerUpload}
+                                        onUploadTriggered={() => setTriggerUpload(false)} // Reset trigger immediately
+                                    />
+                                </div>
+                            )}
+                            {!hasPaid && !checkingPayment && (
+                                <div className="p-6 pb-0">
+                                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between">
+                                        <div className="flex items-center mb-4 md:mb-0">
+                                            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
+                                                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-indigo-900 font-semibold">Pro Feature: PDF Knowledge Base</h4>
+                                                <p className="text-indigo-700 text-sm">Upload custom PDFs to train your AI on your specific business knowledge.</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => router.push('/pricing')}
+                                            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md"
+                                        >
+                                            Upgrade Now
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <ChatAnalysis
+                                chats={chats}
+                                allMessages={{} as any}
+                            />
+                        </div>
                     ) : activeChat && activeChatData ? (
                         <ChatWindow
-                            chatName={activeChatData.name}
+                            chatName={activeChatData.name || "Unknown"}
                             messages={messages}
                             onSendMessage={handleSendMessage}
                         />
