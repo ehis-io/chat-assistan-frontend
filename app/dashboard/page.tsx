@@ -15,7 +15,7 @@ import PdfKnowledgeUpload from "../component/PdfKnowledgeUpload";
 interface Message {
     id: string;
     text: string;
-    sender: "user" | "contact";
+    sender: "user" | "contact" | "assistant";
     timestamp: string;
     status?: "sent" | "delivered" | "read";
 }
@@ -72,24 +72,12 @@ function DashboardContent() {
 
             if (res.ok) {
                 const data = await res.json();
-                // Map backend data to frontend format
-                const mappedChats = data.map((c: any) => {
-                    const lastMsg = c.messages?.[0];
-                    return {
-                        id: c.id,
-                        name: c.customer_name || c.customer_id,
-                        phoneNumber: c.customer_id, // Map customer_id (phone) so we can send messages
-                        lastMessage: lastMsg?.content || "No messages",
-                        timestamp: lastMsg?.timestamp ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "",
-                        unread: 0, // TODO: Implement unread count
-                        avatar: c.customer_name ? c.customer_name.substring(0, 2).toUpperCase() : "U"
-                    };
-                });
-                setChats(mappedChats);
+                // Backend already returns the correctly mapped DTOs
+                setChats(data);
 
                 // If no active chat and we have chats, select first
-                if (!activeChat && mappedChats.length > 0 && !showAnalysis) {
-                    setActiveChat(mappedChats[0].id);
+                if (!activeChat && data.length > 0 && !showAnalysis) {
+                    setActiveChat(data[0].id);
                 }
             }
         } catch (error) {
@@ -112,17 +100,8 @@ function DashboardContent() {
 
             if (res.ok) {
                 const data = await res.json();
-                // Map backend messages to frontend format
-                const mappedMessages = data.map((m: any) => ({
-                    id: m.id,
-                    text: m.content,
-                    sender: m.is_from_business ? "user" : "contact",
-                    timestamp: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    status: "sent" // Default status
-                }));
-                // Backend returns desc (newest first) usually, but we want chronological (asc)
-                // ChatService fetchMessages sorts asc, so we should be good.
-                setMessages(mappedMessages);
+                // Backend already returns the correctly mapped message DTOs
+                setMessages(data);
             }
         } catch (error) {
             console.error("Error fetching messages:", error);
@@ -169,6 +148,13 @@ function DashboardContent() {
         try {
             const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
+
+            if (!token) {
+                console.error("No authentication token found");
+                setErrorMessage("Authentication error: Please log in again");
+                return;
+            }
+
             const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
 
             // Find customer phone number from chat
@@ -180,7 +166,9 @@ function DashboardContent() {
                 return;
             }
 
-            await fetch(`${baseUrl}/chat/send-message`, {
+            console.log(`Sending message to ${currentChat.phoneNumber} (Chat ID: ${currentChat.id})`);
+
+            const response = await fetch(`${baseUrl}/chat/send-message`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -193,12 +181,21 @@ function DashboardContent() {
                 })
             });
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error("Failed to send message:", response.status, errorData);
+                throw new Error(errorData.message || `Server error: ${response.status}`);
+            }
+
+            console.log("Message sent successfully");
+
             // Refresh messages
             fetchMessages(activeChat);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to send message:", error);
-            setErrorMessage("Failed to send message");
+            setErrorMessage(`Failed to send message: ${error.message}`);
+            // Remove optimistic update if failed? Maybe later.
         }
     };
 
@@ -259,7 +256,7 @@ function DashboardContent() {
                 </div>
 
                 {/* Main Chat Area */}
-                <div className="flex-1  justify-center  hidden md:flex overflow-hidden">
+                <div className="flex-1 justify-center hidden md:flex overflow-hidden">
                     {showAnalysis ? (
                         <div className="flex flex-col w-full overflow-y-auto">
                             {/* PDF Upload Section - Only if paid */}
