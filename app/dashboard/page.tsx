@@ -10,6 +10,7 @@ import ChatAnalysis, { Message as AnalysisMessage } from "../component/ChatAnaly
 import { loadMetaSdk, launchEmbeddedSignup, linkWhatsAppBusinessInBackend } from "@/lib/utils/metaSdk";
 import PdfKnowledgeUpload from "../component/PdfKnowledgeUpload";
 import BusinessSettings from "../component/BusinessSettings";
+import { setUserInfo, getUserInfo } from "@/lib/utils/auth";
 
 // Mock data removed
 
@@ -347,9 +348,8 @@ function DashboardContent() {
                                 onUpdate={(updatedBusiness) => {
                                     setBusiness(updatedBusiness);
                                     // Update local info too if needed
-                                    const { saveUserInfo } = require("@/lib/utils/auth");
-                                    const info = JSON.parse(localStorage.getItem('auth_user') || '{}');
-                                    saveUserInfo({ ...info, business: updatedBusiness });
+                                    const info = getUserInfo() || {};
+                                    setUserInfo({ ...info, business: updatedBusiness });
                                 }}
                             />
                         </div>
