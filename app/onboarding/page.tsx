@@ -6,6 +6,7 @@ import Navbar from "../component/Navbar";
 import Footer from "../component/Footer";
 import dynamic from "next/dynamic";
 import { updateBusinessInBackend, BusinessData } from "@/lib/utils/metaSdk";
+import { getUserInfo } from "@/lib/utils/auth";
 
 const MetaEmbeddedSignup = dynamic(() => import("../component/MetaEmbeddedSignup"), { ssr: false });
 
@@ -63,7 +64,6 @@ function OnboardingContent() {
             setStep(0); // Show partner welcome step
         }
 
-        const { getUserInfo } = require("@/lib/utils/auth");
         const info = getUserInfo();
         const biz = info?.business || info?.business_id;
 
