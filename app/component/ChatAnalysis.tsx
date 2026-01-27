@@ -7,13 +7,13 @@ export interface Message {
 
     conversation_id: string;
     conversation?: Chat;
-    customer_name: string;
+
+    text?: string;
+    content?: string; // Keep for backward compatibility/interop
+    sender: "user" | "contact" | "assistant";
 
     message_id: string;
-    content?: string
-
-    // message_type: MessageType;
-    timestamp: Date;
+    timestamp: string | Date;
 
     is_from_business: boolean;
     ai_generated: boolean;
@@ -21,10 +21,9 @@ export interface Message {
     raw_payload?: Record<string, any> | null;
 
     business_id?: string | null;
-    // business?: Business;
 
-    created_at: Date;
-    updated_at: Date;
+    created_at?: Date;
+    updated_at?: Date;
 }
 
 interface Chat {
@@ -69,18 +68,19 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
             messages.forEach(msg => {
                 totalMessages++;
-                const words = msg.content?.toString().toLowerCase().split(/\s+/) || [];
+                const text = msg.text || msg.content || '';
+                const words = text.toString().toLowerCase().split(/\s+/) || [];
                 totalWords += words?.length;
 
                 // Count emojis (simple detection)
                 const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
-                const emojis = msg.content?.toString().match(emojiRegex);
+                const emojis = text.toString().match(emojiRegex);
                 if (emojis) {
-                    if (msg.customer_name === 'user') emojiCount.user += emojis.length;
+                    if (msg.sender === 'user' || msg.is_from_business) emojiCount.user += emojis.length;
                     else emojiCount.contact += emojis.length;
                 }
 
-                if (msg.customer_name === 'user') {
+                if (msg.sender === 'user' || msg.is_from_business) {
                     userMessages++;
                 } else {
                     contactMessages++;
@@ -88,7 +88,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
                 // Word frequency (filter common words)
                 const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'this', 'that', 'these', 'those'];
-                words.forEach(word => {
+                words.forEach((word: string) => {
                     const cleanWord = word.replace(/[^\w]/g, '');
                     if (cleanWord.length > 3 && !commonWords.includes(cleanWord)) {
                         wordFrequency[cleanWord] = (wordFrequency[cleanWord] || 0) + 1;
@@ -96,8 +96,8 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
                 });
 
                 // Sentiment analysis
-                const hasPositive = words.some(w => positiveWords.includes(w));
-                const hasNegative = words.some(w => negativeWords.includes(w));
+                const hasPositive = words.some((w: string) => positiveWords.includes(w));
+                const hasNegative = words.some((w: string) => negativeWords.includes(w));
 
                 if (hasPositive && !hasNegative) {
                     positiveMessages++;

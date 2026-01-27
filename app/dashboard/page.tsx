@@ -34,6 +34,8 @@ function DashboardContent() {
     const [hasPaid, setHasPaid] = useState(false);
     const [checkingPayment, setCheckingPayment] = useState(true);
     const [triggerUpload, setTriggerUpload] = useState(false);
+    const [allMessages, setAllMessages] = useState<Record<string, any[]>>({});
+    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
     useEffect(() => {
         const { getUserInfo, checkPaymentStatus } = require("@/lib/utils/auth");
@@ -57,6 +59,12 @@ function DashboardContent() {
             fetchMessages(activeChat);
         }
     }, [activeChat]);
+
+    useEffect(() => {
+        if (showAnalysis) {
+            fetchAllMessages();
+        }
+    }, [showAnalysis]);
 
     const fetchChats = async () => {
         try {
@@ -105,6 +113,29 @@ function DashboardContent() {
             }
         } catch (error) {
             console.error("Error fetching messages:", error);
+        }
+    };
+
+    const fetchAllMessages = async () => {
+        try {
+            setLoadingAnalytics(true);
+            const { getToken } = require("@/lib/utils/auth");
+            const token = getToken();
+            if (!token) return;
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/chat/all-messages`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setAllMessages(data);
+            }
+        } catch (error) {
+            console.error("Error fetching all messages:", error);
+        } finally {
+            setLoadingAnalytics(false);
         }
     };
 
@@ -294,7 +325,7 @@ function DashboardContent() {
 
                             <ChatAnalysis
                                 chats={chats}
-                                allMessages={{} as any}
+                                allMessages={allMessages}
                             />
                         </div>
                     ) : activeChat && activeChatData ? (
