@@ -9,6 +9,7 @@ import ChatWindow from "../component/ChatWindow";
 import ChatAnalysis, { Message as AnalysisMessage } from "../component/ChatAnalysis";
 import { loadMetaSdk, launchEmbeddedSignup, linkWhatsAppBusinessInBackend } from "@/lib/utils/metaSdk";
 import PdfKnowledgeUpload from "../component/PdfKnowledgeUpload";
+import BusinessSettings from "../component/BusinessSettings";
 
 // Mock data removed
 
@@ -36,6 +37,7 @@ function DashboardContent() {
     const [triggerUpload, setTriggerUpload] = useState(false);
     const [allMessages, setAllMessages] = useState<Record<string, any[]>>({});
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
     useEffect(() => {
         const { getUserInfo, checkPaymentStatus } = require("@/lib/utils/auth");
@@ -151,6 +153,13 @@ function DashboardContent() {
     const handleShowAnalysis = () => {
         setShowAnalysis(true);
         setActiveChat(null);
+        setShowSettings(false);
+    };
+
+    const handleShowSettings = () => {
+        setShowSettings(true);
+        setShowAnalysis(false);
+        setActiveChat(null);
     };
 
     const handleConnectionStatus = async () => {
@@ -161,6 +170,7 @@ function DashboardContent() {
     const handleSelectChat = (chatId: string) => {
         setActiveChat(chatId);
         setShowAnalysis(false);
+        setShowSettings(false);
     };
 
     const handleSendMessage = async (message: string) => {
@@ -282,7 +292,8 @@ function DashboardContent() {
                         activeChat={activeChat}
                         onSelectChat={handleSelectChat}
                         onShowAnalysis={handleShowAnalysis}
-                        onUploadClick={() => setTriggerUpload(prev => !prev)} // Toggle trigger
+                        onUploadClick={() => setTriggerUpload(prev => !prev)}
+                        onShowSettings={handleShowSettings}
                     />
                 </div>
 
@@ -326,6 +337,20 @@ function DashboardContent() {
                             <ChatAnalysis
                                 chats={chats}
                                 allMessages={allMessages}
+                            />
+                        </div>
+                    ) : showSettings ? (
+                        <div className="flex flex-col w-full h-full p-6 overflow-hidden">
+                            <BusinessSettings
+                                business={business}
+                                onClose={() => setShowSettings(false)}
+                                onUpdate={(updatedBusiness) => {
+                                    setBusiness(updatedBusiness);
+                                    // Update local info too if needed
+                                    const { saveUserInfo } = require("@/lib/utils/auth");
+                                    const info = JSON.parse(localStorage.getItem('auth_user') || '{}');
+                                    saveUserInfo({ ...info, business: updatedBusiness });
+                                }}
                             />
                         </div>
                     ) : activeChat && activeChatData ? (
