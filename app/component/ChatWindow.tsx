@@ -6,6 +6,7 @@ import Link from "next/link";
 interface Message {
     id: string;
     text: string;
+    type?: "TEXT" | "IMAGE" | "UNKNOWN" | string;
     sender: "user" | "contact" | "assistant";
     timestamp: string;
     status?: "sent" | "delivered" | "read";
@@ -142,7 +143,25 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                                     <span className="text-[10px] font-bold uppercase tracking-wider">AI Assistant</span>
                                 </div>
                             )}
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                            {message.type === "IMAGE" ? (
+                                <div className="space-y-2">
+                                    <div className="rounded-lg overflow-hidden border border-white/20 shadow-sm">
+                                        <img
+                                            src={message.text.includes('\n\n') ? message.text.split('\n\n')[1] : message.text}
+                                            alt="Shared image"
+                                            className="w-full h-auto max-h-80 object-contain bg-black/5"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = "https://placehold.co/400x300?text=Media+Not+Available";
+                                            }}
+                                        />
+                                    </div>
+                                    {message.text.includes('\n\n') && (
+                                        <p className="text-sm leading-relaxed">{message.text.split('\n\n')[0]}</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                            )}
                             <div className="flex items-center justify-end gap-1.5 mt-2">
                                 <span className={`text-[10px] ${message.sender === "user" ? "text-blue-100" : "text-gray-400"}`}>
                                     {message.timestamp}

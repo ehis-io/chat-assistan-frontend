@@ -102,7 +102,6 @@ function DashboardContent() {
 
     const fetchMessages = async (chatId: string) => {
         try {
-            const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
             if (!token) return;
 
@@ -124,7 +123,6 @@ function DashboardContent() {
     const fetchAllMessages = async () => {
         try {
             setLoadingAnalytics(true);
-            const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
             if (!token) return;
 
@@ -235,7 +233,6 @@ function DashboardContent() {
         setMessages(prev => [...prev, newItem]);
 
         try {
-            const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
 
             if (!token) {
