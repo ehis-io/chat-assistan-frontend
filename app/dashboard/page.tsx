@@ -10,7 +10,8 @@ import ChatAnalysis, { Message as AnalysisMessage } from "../component/ChatAnaly
 import { loadMetaSdk, launchEmbeddedSignup, linkWhatsAppBusinessInBackend } from "@/lib/utils/metaSdk";
 import PdfKnowledgeUpload from "../component/PdfKnowledgeUpload";
 import BusinessSettings from "../component/BusinessSettings";
-import { setUserInfo, getUserInfo } from "@/lib/utils/auth";
+import OrderList from "../component/OrderList";
+import { setUserInfo, getUserInfo, checkPaymentStatus, getToken } from "@/lib/utils/auth";
 
 // Mock data removed
 
@@ -39,9 +40,11 @@ function DashboardContent() {
     const [allMessages, setAllMessages] = useState<Record<string, any[]>>({});
     const [loadingAnalytics, setLoadingAnalytics] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
+    const [showOrders, setShowOrders] = useState(false);
+    const [hasNewOrders, setHasNewOrders] = useState(false);
+    const [prevPendingCount, setPrevPendingCount] = useState(0);
 
     useEffect(() => {
-        const { getUserInfo, checkPaymentStatus } = require("@/lib/utils/auth");
         const info = getUserInfo();
         if (info && info.business) {
             setBusiness(info.business);
@@ -72,7 +75,6 @@ function DashboardContent() {
     const fetchChats = async () => {
         try {
             setLoadingChats(true);
-            const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
             if (!token) return;
 
@@ -100,7 +102,6 @@ function DashboardContent() {
 
     const fetchMessages = async (chatId: string) => {
         try {
-            const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
             if (!token) return;
 
@@ -122,7 +123,6 @@ function DashboardContent() {
     const fetchAllMessages = async () => {
         try {
             setLoadingAnalytics(true);
-            const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
             if (!token) return;
 
@@ -155,13 +155,57 @@ function DashboardContent() {
         setShowAnalysis(true);
         setActiveChat(null);
         setShowSettings(false);
+        setShowOrders(false);
     };
 
     const handleShowSettings = () => {
         setShowSettings(true);
         setShowAnalysis(false);
         setActiveChat(null);
+        setShowOrders(false);
     };
+
+    const handleShowOrders = () => {
+        setShowOrders(true);
+        setHasNewOrders(false);
+        setShowAnalysis(false);
+        setShowSettings(false);
+        setActiveChat(null);
+    };
+
+    const checkForNewOrders = async () => {
+        try {
+            const token = getToken();
+            if (!token) return;
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const response = await fetch(`${baseUrl}/orders`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const pendingOrders = data.filter((o: any) => o.status === 'PENDING');
+                const currentPendingCount = pendingOrders.length;
+
+                if (currentPendingCount > prevPendingCount) {
+                    setHasNewOrders(true);
+                }
+                setPrevPendingCount(currentPendingCount);
+            }
+        } catch (err) {
+            console.error("New order check failed:", err);
+        }
+    };
+
+    useEffect(() => {
+        // Initial check
+        checkForNewOrders();
+
+        // Poll every 30 seconds
+        const interval = setInterval(checkForNewOrders, 30000);
+        return () => clearInterval(interval);
+    }, [prevPendingCount]);
 
     const handleConnectionStatus = async () => {
         if (!business || !business.id || !business.access_token) return;
@@ -172,6 +216,7 @@ function DashboardContent() {
         setActiveChat(chatId);
         setShowAnalysis(false);
         setShowSettings(false);
+        setShowOrders(false);
     };
 
     const handleSendMessage = async (message: string) => {
@@ -188,7 +233,6 @@ function DashboardContent() {
         setMessages(prev => [...prev, newItem]);
 
         try {
-            const { getToken } = require("@/lib/utils/auth");
             const token = getToken();
 
             if (!token) {
@@ -295,6 +339,8 @@ function DashboardContent() {
                         onShowAnalysis={handleShowAnalysis}
                         onUploadClick={() => setTriggerUpload(prev => !prev)}
                         onShowSettings={handleShowSettings}
+                        onShowOrders={handleShowOrders}
+                        hasNewOrders={hasNewOrders}
                     />
                 </div>
 
@@ -353,6 +399,8 @@ function DashboardContent() {
                                 }}
                             />
                         </div>
+                    ) : showOrders ? (
+                        <OrderList />
                     ) : activeChat && activeChatData ? (
                         <ChatWindow
                             chatName={activeChatData.name || "Unknown"}
