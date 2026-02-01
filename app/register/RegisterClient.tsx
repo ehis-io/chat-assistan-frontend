@@ -102,8 +102,10 @@ export default function RegisterClient() {
             });
 
             if (!res.ok) {
-                // For demonstration purposes, if the backend isn't running, we'll simulate success
-                console.warn("Backend API failed, simulating success for demo.");
+                const errorData = await res.json();
+                setError(errorData.message || "Registration failed. Please try again.");
+                setLoading(false);
+                return;
             }
 
             // Successful registration, redirect to onboarding if they have a plan

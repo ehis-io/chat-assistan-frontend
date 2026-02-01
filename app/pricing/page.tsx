@@ -169,14 +169,12 @@ export default function Pricing() {
                                             Active Subscription
                                         </button>
                                     ) : (
-                                        <PaystackInline
-                                            email={userEmail}
-                                            amount={Number(tier.price)}
-                                            label={tier.buttonText}
-                                            planCode={process.env.NEXT_PUBLIC_PAYSTACK_PRO_PLAN_CODE}
-                                            onSuccess={handlePaymentSuccess}
-                                            onClose={() => console.log("Payment modal closed")}
-                                        />
+                                        <button
+                                            onClick={() => router.push('/dashboard/billing')}
+                                            className="w-full py-4 rounded-2xl bg-[var(--primary-color)] text-white font-bold shadow-lg shadow-[var(--primary-color)]/30 hover:shadow-xl hover:shadow-[var(--primary-color)]/40 hover:bg-[var(--accent-color)] transition-all duration-300 transform active:scale-95"
+                                        >
+                                            {tier.buttonText}
+                                        </button>
                                     )
                                 ) : (
                                     <Link href={tier.name === "Enterprise" ? "mailto:sales@soro.com" : `/register?plan=${tier.id}`} className="block">
