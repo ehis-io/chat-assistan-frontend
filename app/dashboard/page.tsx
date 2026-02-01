@@ -331,7 +331,7 @@ function DashboardContent() {
             )}
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar */}
-                <div className="w-full md:w-80 flex-shrink-0">
+                <div className="w-full md:w-96 flex-shrink-0">
                     <DashboardSidebar
                         chats={chats}
                         activeChat={activeChat}
