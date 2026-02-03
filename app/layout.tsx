@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Your personal WhatsApp chat assistant.",
 };
 
+import { ToastProvider } from "./component/ToastProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

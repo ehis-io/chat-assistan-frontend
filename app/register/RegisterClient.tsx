@@ -7,10 +7,14 @@ import Link from "next/link";
 import Navbar from "../component/Navbar";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { api } from "../../lib/api";
+import { useToast } from "../component/ToastProvider";
+
 
 export default function RegisterClient() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { showToast } = useToast();
 
 
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -79,21 +83,21 @@ export default function RegisterClient() {
         };
 
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const response = await api.post('/user/create', payload);
 
-            // 1. Register (Mocking success for demo context if API fails)
-            const res = await fetch(`${baseUrl}/user/create`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!res.ok) {
-                // For demonstration purposes, if the backend isn't running, we'll simulate success
-                console.warn("Backend API failed, simulating success for demo.");
+            if (!response.success) {
+                // Check if it's a specific duplicate entry error
+                if (response.code === 'DUPLICATE_ENTRY') {
+                    setError("Email address is already in use.");
+                } else {
+                    setError(response.error || "Registration failed.");
+                }
+                showToast(response.error || "Registration failed.", "error");
+                setLoading(false);
+                return;
             }
+
+            showToast("Account created successfully!", "success");
 
             // Successful registration, redirect to onboarding if they have a plan
             const redirectUrl = planDetail
@@ -104,7 +108,9 @@ export default function RegisterClient() {
 
         } catch (err: any) {
             console.error(err);
-            setError(err.message || "Something went wrong. Please check your connection.");
+            const msg = "Something went wrong. Please check your connection.";
+            setError(msg);
+            showToast(msg, "error");
         } finally {
             setLoading(false);
         }
