@@ -40,7 +40,7 @@ export default function Navbar() {
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-3 group">
                     <div className="w-11 h-11 relative bg-gradient-to-tr from-[var(--primary-color)] to-[var(--accent-color)] rounded-xl flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-[var(--primary-color)]/40 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-3">
-                        <span className="text-lg"></span>
+                        <span className="text-lg">CA</span>
                     </div>
                     <span className="text-2xl font-black tracking-tighter text-[var(--text-color)] group-hover:text-[var(--primary-color)] transition-colors">
                         S<span className="text-[var(--primary-color)]">oro</span>
@@ -49,7 +49,7 @@ export default function Navbar() {
 
                 {/* Desktop Menu */}
                 <div className="hidden md:flex items-center gap-10">
-                    <Link href="#features" onClick={scrollToFeatures} className="text-sm font-bold text-gray-500 hover:text-[var(--primary-color)] transition-all duration-300 relative group/link">
+                    <Link href="/" onClick={scrollToFeatures} className="text-sm font-bold text-gray-500 hover:text-[var(--primary-color)] transition-all duration-300 relative group/link">
                         Features
                         <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[var(--primary-color)] transition-all duration-300 group-hover/link:w-full"></span>
                     </Link>

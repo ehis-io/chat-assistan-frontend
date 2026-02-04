@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// Interface for individual message objects in the conversation
 interface Message {
     id: string;
     text: string;
-    sender: "user" | "contact";
+    type?: "TEXT" | "IMAGE" | "UNKNOWN" | string;
+    sender: "user" | "contact" | "assistant";
     timestamp: string;
     status?: "sent" | "delivered" | "read";
 }
@@ -21,55 +21,24 @@ interface ChatWindowProps {
 export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWindowProps) {
     const [inputMessage, setInputMessage] = useState("");
     const [showTemplates, setShowTemplates] = useState(false);
-    const [localMessages, setLocalMessages] = useState<Message[]>(messages);
+    // Removed localMessages state to rely on props (SSOT)
 
-    // List of pre-approved WhatsApp message templates for business initiation
     const mockTemplates = [
         { id: "1", name: "welcome_message", text: "Hello! Welcome to our service. How can we help you today?", category: "UTILITY" },
         { id: "2", name: "order_confirmation", text: "Your order has been confirmed. It will be delivered by tomorrow.", category: "TRANSACTIONAL" },
         { id: "3", name: "appointment_reminder", text: "Friendly reminder of your appointment scheduled for tomorrow.", category: "UTILITY" }
     ];
 
-    /**
-     * handleSend: Handles sending a plain text message.
-     * Updates local state immediately and triggers the parent callback.
-     */
     const handleSend = () => {
         if (inputMessage.trim()) {
-            const newMessage: Message = {
-                id: Date.now().toString(),
-                text: inputMessage,
-                sender: "user",
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                status: "sent"
-            };
-            setLocalMessages([...localMessages, newMessage]);
             onSendMessage(inputMessage);
             setInputMessage("");
-
-            // Simulate delivery
-            setTimeout(() => {
-                setLocalMessages(prev => prev.map(m => m.id === newMessage.id ? { ...m, status: "delivered" } : m));
-            }, 1000);
         }
     };
 
     const handleSendTemplate = (template: typeof mockTemplates[0]) => {
-        const newMessage: Message = {
-            id: Date.now().toString(),
-            text: template.text,
-            sender: "user",
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: "sent"
-        };
-        setLocalMessages([...localMessages, newMessage]);
         onSendMessage(template.text);
         setShowTemplates(false);
-
-        // Simulate delivery
-        setTimeout(() => {
-            setLocalMessages(prev => prev.map(m => m.id === newMessage.id ? { ...m, status: "delivered" } : m));
-        }, 1500);
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -122,7 +91,7 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                     </div>
                 </div>
             )}
-            {/* 1. Header: Contact info and Verification status */}
+            {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="relative">
@@ -151,9 +120,9 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                 </div>
             </div>
 
-            {/* 2. Scrollable Messages Container */}
+            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {localMessages.map((message) => (
+                {messages.map((message) => (
                     <div
                         key={message.id}
                         className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
@@ -161,10 +130,38 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                         <div
                             className={`max-w-[75%] rounded-2xl px-5 py-3 shadow-sm ${message.sender === "user"
                                 ? "bg-[var(--primary-color)] text-white rounded-tr-none"
-                                : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
+                                : message.sender === "assistant"
+                                    ? "bg-blue-50 border border-blue-100 text-[var(--primary-color)] rounded-tl-none"
+                                    : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
                                 }`}
                         >
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                            {message.sender === "assistant" && (
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <svg className="w-3 h-3 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">AI Assistant</span>
+                                </div>
+                            )}
+                            {message.type === "IMAGE" ? (
+                                <div className="space-y-2">
+                                    <div className="rounded-lg overflow-hidden border border-white/20 shadow-sm">
+                                        <img
+                                            src={message.text.includes('\n\n') ? message.text.split('\n\n')[1] : message.text}
+                                            alt="Shared image"
+                                            className="w-full h-auto max-h-80 object-contain bg-black/5"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = "https://placehold.co/400x300?text=Media+Not+Available";
+                                            }}
+                                        />
+                                    </div>
+                                    {message.text.includes('\n\n') && (
+                                        <p className="text-sm leading-relaxed">{message.text.split('\n\n')[0]}</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.text}</p>
+                            )}
                             <div className="flex items-center justify-end gap-1.5 mt-2">
                                 <span className={`text-[10px] ${message.sender === "user" ? "text-blue-100" : "text-gray-400"}`}>
                                     {message.timestamp}
@@ -188,7 +185,7 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                 ))}
             </div>
 
-            {/* 3. Input Controls: Textarea and Template selector */}
+            {/* Input Area */}
             <div className="bg-white border-t border-gray-200 p-4 pb-8">
                 <div className="flex items-end gap-3 max-w-4xl mx-auto">
                     <div className="flex gap-1 mb-1">

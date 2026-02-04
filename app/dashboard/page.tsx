@@ -2,101 +2,150 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+
+import { useRouter } from 'next/navigation';
 import DashboardSidebar from "../component/DashboardSidebar";
 import ChatWindow from "../component/ChatWindow";
-import ChatAnalysis from "../component/ChatAnalysis";
-import { loadMetaSdk, launchEmbeddedSignup } from "@/lib/utils/metaSdk";
+import ChatAnalysis, { Message as AnalysisMessage } from "../component/ChatAnalysis";
+import { loadMetaSdk, launchEmbeddedSignup, linkWhatsAppBusinessInBackend } from "@/lib/utils/metaSdk";
+import PdfKnowledgeUpload from "../component/PdfKnowledgeUpload";
+import BusinessSettings from "../component/BusinessSettings";
+import OrderList from "../component/OrderList";
+import { setUserInfo, getUserInfo, checkPaymentStatus, getToken } from "@/lib/utils/auth";
 
-// Mock data: Simulates a real-time chat database for demonstration purposes
-const mockChats = [
-    {
-        id: "1",
-        name: "John Doe",
-        lastMessage: "Hey! How are you doing?",
-        timestamp: "2m ago",
-        unread: 2,
-        avatar: "JD"
-    },
-    {
-        id: "2",
-        name: "Sarah Smith",
-        lastMessage: "Thanks for your help!",
-        timestamp: "1h ago",
-        unread: 0,
-        avatar: "SS"
-    },
-    {
-        id: "3",
-        name: "Mike Johnson",
-        lastMessage: "See you tomorrow",
-        timestamp: "3h ago",
-        unread: 1,
-        avatar: "MJ"
-    },
-    {
-        id: "4",
-        name: "Emily Brown",
-        lastMessage: "That sounds great!",
-        timestamp: "Yesterday",
-        unread: 0,
-        avatar: "EB"
-    }
-];
+// Mock data removed
 
-const mockMessages = {
-    "1": [
-        { id: "1", text: "Hey! How are you doing?", sender: "contact" as const, timestamp: "10:30 AM" },
-        { id: "2", text: "I'm doing great, thanks! How about you?", sender: "user" as const, timestamp: "10:32 AM" },
-        { id: "3", text: "Pretty good! Just working on some projects", sender: "contact" as const, timestamp: "10:33 AM" },
-        { id: "4", text: "That's awesome! What are you working on?", sender: "user" as const, timestamp: "10:35 AM" }
-    ],
-    "2": [
-        { id: "1", text: "Thanks for your help!", sender: "contact" as const, timestamp: "9:15 AM" },
-        { id: "2", text: "You're welcome! Happy to help anytime", sender: "user" as const, timestamp: "9:20 AM" }
-    ],
-    "3": [
-        { id: "1", text: "See you tomorrow", sender: "contact" as const, timestamp: "8:00 AM" },
-        { id: "2", text: "Sounds good! See you then", sender: "user" as const, timestamp: "8:05 AM" }
-    ],
-    "4": [
-        { id: "1", text: "That sounds great!", sender: "contact" as const, timestamp: "Yesterday" }
-    ]
-};
+interface Message {
+    id: string;
+    text: string;
+    sender: "user" | "contact" | "assistant";
+    timestamp: string;
+    status?: "sent" | "delivered" | "read";
+}
 
-/**
- * DashboardContent: The core engine of the dashboard.
- * Manages the transition between the AI Chat Analysis view and individual conversation windows.
- */
 function DashboardContent() {
     const searchParams = useSearchParams();
-    const [activeChat, setActiveChat] = useState<string | null>("1");
-    const [chats] = useState(mockChats);
+    const router = useRouter(); // Added router for redirects if needed
+    const [activeChat, setActiveChat] = useState<string | null>(null);
+    const [chats, setChats] = useState<any[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [showAnalysis, setShowAnalysis] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [business, setBusiness] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
     const [metaConnected, setMetaConnected] = useState(false);
+    const [business, setBusiness] = useState<any>(null);
+    const [loadingChats, setLoadingChats] = useState(false);
+    const [hasPaid, setHasPaid] = useState(false);
+    const [checkingPayment, setCheckingPayment] = useState(true);
+    const [triggerUpload, setTriggerUpload] = useState(false);
+    const [allMessages, setAllMessages] = useState<Record<string, any[]>>({});
+    const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [showOrders, setShowOrders] = useState(false);
+    const [hasNewOrders, setHasNewOrders] = useState(false);
+    const [prevPendingCount, setPrevPendingCount] = useState(0);
 
     useEffect(() => {
-        // Retrieve stored user info
-        const fetchBusinessStatus = async () => {
-            try {
-                const { getUserInfo } = await import("@/lib/utils/auth");
-                const userInfo = getUserInfo();
-                // Business status is retrieved from the stored user info (login data: user.business)
-                setBusiness(userInfo?.business || null);
-            } catch (err) {
-                console.error("Failed to fetch business status", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
+        const info = getUserInfo();
+        if (info && info.business) {
+            setBusiness(info.business);
+        }
+        fetchChats();
 
-        fetchBusinessStatus();
+        // Check payment status
+        const verifyPayment = async () => {
+            const status = await checkPaymentStatus();
+            setHasPaid(status.hasValidPayment);
+            setCheckingPayment(false);
+        };
+        verifyPayment();
+    }, []);
+
+    useEffect(() => {
+        if (activeChat) {
+            fetchMessages(activeChat);
+        }
+    }, [activeChat]);
+
+    useEffect(() => {
+        if (showAnalysis) {
+            fetchAllMessages();
+        }
+    }, [showAnalysis]);
+
+    const fetchChats = async () => {
+        try {
+            setLoadingChats(true);
+            const token = getToken();
+            if (!token) return;
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/chat/conversations?take=50`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Backend already returns the correctly mapped DTOs
+                setChats(data);
+
+                // If no active chat and we have chats, select first
+                if (!activeChat && data.length > 0 && !showAnalysis) {
+                    setActiveChat(data[0].id);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching chats:", error);
+        } finally {
+            setLoadingChats(false);
+        }
+    };
+
+    const fetchMessages = async (chatId: string) => {
+        try {
+            const token = getToken();
+            if (!token) return;
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/chat/messages/${chatId}?take=50`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Backend already returns the correctly mapped message DTOs
+                setMessages(data);
+            }
+        } catch (error) {
+            console.error("Error fetching messages:", error);
+        }
+    };
+
+    const fetchAllMessages = async () => {
+        try {
+            setLoadingAnalytics(true);
+            const token = getToken();
+            if (!token) return;
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/chat/all-messages`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setAllMessages(data);
+            }
+        } catch (error) {
+            console.error("Error fetching all messages:", error);
+        } finally {
+            setLoadingAnalytics(false);
+        }
+    };
+
+    useEffect(() => {
         const error = searchParams.get('error');
         if (error === 'access_denied') {
             setErrorMessage('Access Denied: You do not have admin privileges to access that page.');
-            // Clear error message after 5 seconds
             const timer = setTimeout(() => setErrorMessage(null), 5000);
             return () => clearTimeout(timer);
         }
@@ -105,34 +154,135 @@ function DashboardContent() {
     const handleShowAnalysis = () => {
         setShowAnalysis(true);
         setActiveChat(null);
+        setShowSettings(false);
+        setShowOrders(false);
     };
 
+    const handleShowSettings = () => {
+        setShowSettings(true);
+        setShowAnalysis(false);
+        setActiveChat(null);
+        setShowOrders(false);
+    };
 
-    const handleConnectionStatus = async () => {
+    const handleShowOrders = () => {
+        setShowOrders(true);
+        setHasNewOrders(false);
+        setShowAnalysis(false);
+        setShowSettings(false);
+        setActiveChat(null);
+    };
+
+    const checkForNewOrders = async () => {
         try {
+            const token = getToken();
+            if (!token) return;
 
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL
-            const response = await fetch(`${baseUrl}/api/v1/business/${business.id}/connection-status`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${business.access_token}`
-                }
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const response = await fetch(`${baseUrl}/orders`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
-        } catch (error) {
+            if (response.ok) {
+                const data = await response.json();
+                const pendingOrders = data.filter((o: any) => o.status === 'PENDING');
+                const currentPendingCount = pendingOrders.length;
 
+                if (currentPendingCount > prevPendingCount) {
+                    setHasNewOrders(true);
+                }
+                setPrevPendingCount(currentPendingCount);
+            }
+        } catch (err) {
+            console.error("New order check failed:", err);
         }
+    };
+
+    useEffect(() => {
+        // Initial check
+        checkForNewOrders();
+
+        // Poll every 30 seconds
+        const interval = setInterval(checkForNewOrders, 30000);
+        return () => clearInterval(interval);
+    }, [prevPendingCount]);
+
+    const handleConnectionStatus = async () => {
+        if (!business || !business.id || !business.access_token) return;
+        // ... existing logic ...
     }
 
     const handleSelectChat = (chatId: string) => {
         setActiveChat(chatId);
         setShowAnalysis(false);
+        setShowSettings(false);
+        setShowOrders(false);
     };
 
-    const handleSendMessage = (message: string) => {
-        console.log("Sending message:", message);
-        // TODO: Implement actual message sending logic
+    const handleSendMessage = async (message: string) => {
+        if (!activeChat) return;
+
+        // Optimistic update
+        const newItem: Message = {
+            id: Date.now().toString(),
+            text: message,
+            sender: "user",
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: "sent"
+        };
+        setMessages(prev => [...prev, newItem]);
+
+        try {
+            const token = getToken();
+
+            if (!token) {
+                console.error("No authentication token found");
+                setErrorMessage("Authentication error: Please log in again");
+                return;
+            }
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+
+            // Find customer phone number from chat
+            const currentChat = chats.find(c => c.id === activeChat);
+
+            if (!currentChat?.phoneNumber) {
+                console.error("No phone number found for chat", currentChat);
+                setErrorMessage("Cannot send message: Missing customer phone number");
+                return;
+            }
+
+            console.log(`Sending message to ${currentChat.phoneNumber} (Chat ID: ${currentChat.id})`);
+
+            const response = await fetch(`${baseUrl}/chat/send-message`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    phoneNumber: currentChat.phoneNumber,
+                    id: currentChat.id, // Conversation ID
+                    message: message
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error("Failed to send message:", response.status, errorData);
+                throw new Error(errorData.message || `Server error: ${response.status}`);
+            }
+
+            console.log("Message sent successfully");
+
+            // Refresh messages
+            fetchMessages(activeChat);
+
+        } catch (error: any) {
+            console.error("Failed to send message:", error);
+            setErrorMessage(`Failed to send message: ${error.message}`);
+            // Remove optimistic update if failed? Maybe later.
+        }
     };
 
     const handleMetaLink = async () => {
@@ -145,9 +295,9 @@ function DashboardContent() {
 
             await loadMetaSdk(appId);
             const response = await launchEmbeddedSignup();
-            console.log("Meta Link response:", response);
 
-            if (response.authResponse) {
+            if (response.authResponse?.accessToken) {
+                await linkWhatsAppBusinessInBackend(response.authResponse.accessToken);
                 setMetaConnected(true);
             }
         } catch (err: any) {
@@ -157,42 +307,6 @@ function DashboardContent() {
     };
 
     const activeChatData = chats.find(chat => chat.id === activeChat);
-
-    // Guard: If business is not connected, show the notice and hide the dashboard
-    if (!isLoading && (!business || (business.whatsapp_status === 'NOT_CONNECTED' && !business.whatsapp_connected_at))) {
-        return (
-            <div className="h-screen flex items-center justify-center bg-gray-50 p-6">
-                <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 text-center border border-gray-100 animate-fadeIn">
-                    <div className="w-20 h-20 bg-blue-50 rounded-[2rem] flex items-center justify-center text-[var(--primary-color)] mx-auto mb-6 relative">
-                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full border-4 border-white animate-pulse"></div>
-                    </div>
-                    <h2 className="text-2xl font-black text-gray-900 mb-2">WhatsApp Not Connected</h2>
-                    <p className="text-gray-500 mb-8 leading-relaxed">
-                        Your WhatsApp Business connection is currently inactive. This usually means your setup is pending admin approval or the connection was interrupted.
-                    </p>
-                    <div className="space-y-4">
-
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="w-full bg-[var(--primary-color)] text-gray-600 py-3 rounded-2xl font-bold hover:bg-gray-100 transition-all border border-gray-100 text-sm"
-                        >
-                            Refresh Connection Status
-                        </button>
-                    </div>
-                    <p className="mt-6 text-[10px] text-gray-400">
-                        Estimated setup time: 1-5 business days. You will receive an email once your account is active.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    if (isLoading) {
-        return <div className="h-screen flex items-center justify-center bg-gray-50 text-gray-500 font-medium">Loading workspace...</div>;
-    }
 
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-gray-100">
@@ -216,29 +330,81 @@ function DashboardContent() {
                 </div>
             )}
             <div className="flex flex-1 overflow-hidden">
-                {/* Left Section: Sidebar with Chat List and Actions */}
-                <div className="w-full md:w-80 flex-shrink-0">
+                {/* Sidebar */}
+                <div className="w-full md:w-96 flex-shrink-0">
                     <DashboardSidebar
                         chats={chats}
                         activeChat={activeChat}
                         onSelectChat={handleSelectChat}
                         onShowAnalysis={handleShowAnalysis}
-                        onMetaLink={handleMetaLink}
+                        onUploadClick={() => setTriggerUpload(prev => !prev)}
+                        onShowSettings={handleShowSettings}
+                        onShowOrders={handleShowOrders}
+                        hasNewOrders={hasNewOrders}
                     />
                 </div>
 
-                {/* Right Section: Main Content Area (Conditional View) */}
-                <div className="flex-1  justify-center  hidden md:flex">
-                    {/* View 1: Chat Analysis (Overview of all conversations) */}
+                {/* Main Chat Area */}
+                <div className="flex-1 justify-center hidden md:flex overflow-hidden">
                     {showAnalysis ? (
-                        <ChatAnalysis
-                            chats={chats}
-                            allMessages={mockMessages}
-                        />
+                        <div className="flex flex-col w-full overflow-y-auto">
+                            {/* PDF Upload Section - Only if paid */}
+                            {hasPaid && (
+                                <div className="p-6 pb-0">
+                                    <PdfKnowledgeUpload
+                                        triggerUpload={triggerUpload}
+                                        onUploadTriggered={() => setTriggerUpload(false)} // Reset trigger immediately
+                                    />
+                                </div>
+                            )}
+                            {!hasPaid && !checkingPayment && (
+                                <div className="p-6 pb-0">
+                                    <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between">
+                                        <div className="flex items-center mb-4 md:mb-0">
+                                            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mr-4 flex-shrink-0">
+                                                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-indigo-900 font-semibold">Pro Feature: PDF Knowledge Base</h4>
+                                                <p className="text-indigo-700 text-sm">Upload custom PDFs to train your AI on your specific business knowledge.</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => router.push('/pricing')}
+                                            className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md"
+                                        >
+                                            Upgrade Now
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <ChatAnalysis
+                                chats={chats}
+                                allMessages={allMessages}
+                            />
+                        </div>
+                    ) : showSettings ? (
+                        <div className="flex flex-col w-full h-full p-6 overflow-hidden">
+                            <BusinessSettings
+                                business={business}
+                                onClose={() => setShowSettings(false)}
+                                onUpdate={(updatedBusiness) => {
+                                    setBusiness(updatedBusiness);
+                                    // Update local info too if needed
+                                    const info = getUserInfo() || {};
+                                    setUserInfo({ ...info, business: updatedBusiness });
+                                }}
+                            />
+                        </div>
+                    ) : showOrders ? (
+                        <OrderList />
                     ) : activeChat && activeChatData ? (
                         <ChatWindow
-                            chatName={activeChatData.name}
-                            messages={mockMessages[activeChat as keyof typeof mockMessages] || []}
+                            chatName={activeChatData.name || "Unknown"}
+                            messages={messages}
                             onSendMessage={handleSendMessage}
                         />
                     ) : (

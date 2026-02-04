@@ -2,11 +2,28 @@
 
 import { useMemo } from "react";
 
-interface Message {
+export interface Message {
     id: string;
-    text: string;
-    sender: "user" | "contact";
-    timestamp: string;
+
+    conversation_id: string;
+    conversation?: Chat;
+
+    text?: string;
+    content?: string; // Keep for backward compatibility/interop
+    sender: "user" | "contact" | "assistant";
+
+    message_id: string;
+    timestamp: string | Date;
+
+    is_from_business: boolean;
+    ai_generated: boolean;
+
+    raw_payload?: Record<string, any> | null;
+
+    business_id?: string | null;
+
+    created_at?: Date;
+    updated_at?: Date;
 }
 
 interface Chat {
@@ -25,10 +42,6 @@ interface ChatAnalysisProps {
 
 export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) {
     // Calculate analytics
-    /**
-     * analytics: Computes all statistical data from the raw message history.
-     * Uses useMemo for performance optimization.
-     */
     const analytics = useMemo(() => {
         const totalChats = chats.length;
         let totalMessages = 0;
@@ -39,7 +52,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
         const contactMessageCounts: Record<string, number> = {};
         const emojiCount = { user: 0, contact: 0 };
 
-        // Simple sentiment analysis configuration (basic keyword matching)
+        // Simple sentiment analysis (basic keyword matching)
         const positiveWords = ['good', 'great', 'awesome', 'thanks', 'thank', 'happy', 'love', 'excellent', 'wonderful', 'amazing'];
         const negativeWords = ['bad', 'terrible', 'awful', 'hate', 'angry', 'sad', 'sorry', 'problem', 'issue', 'wrong'];
         let positiveMessages = 0;
@@ -55,18 +68,19 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
             messages.forEach(msg => {
                 totalMessages++;
-                const words = msg.text.toLowerCase().split(/\s+/);
-                totalWords += words.length;
+                const text = msg.text || msg.content || '';
+                const words = text.toString().toLowerCase().split(/\s+/) || [];
+                totalWords += words?.length;
 
                 // Count emojis (simple detection)
                 const emojiRegex = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
-                const emojis = msg.text.match(emojiRegex);
+                const emojis = text.toString().match(emojiRegex);
                 if (emojis) {
-                    if (msg.sender === 'user') emojiCount.user += emojis.length;
+                    if (msg.sender === 'user' || msg.is_from_business) emojiCount.user += emojis.length;
                     else emojiCount.contact += emojis.length;
                 }
 
-                if (msg.sender === 'user') {
+                if (msg.sender === 'user' || msg.is_from_business) {
                     userMessages++;
                 } else {
                     contactMessages++;
@@ -74,7 +88,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
                 // Word frequency (filter common words)
                 const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'this', 'that', 'these', 'those'];
-                words.forEach(word => {
+                words.forEach((word: string) => {
                     const cleanWord = word.replace(/[^\w]/g, '');
                     if (cleanWord.length > 3 && !commonWords.includes(cleanWord)) {
                         wordFrequency[cleanWord] = (wordFrequency[cleanWord] || 0) + 1;
@@ -82,8 +96,8 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
                 });
 
                 // Sentiment analysis
-                const hasPositive = words.some(w => positiveWords.includes(w));
-                const hasNegative = words.some(w => negativeWords.includes(w));
+                const hasPositive = words.some((w: string) => positiveWords.includes(w));
+                const hasNegative = words.some((w: string) => negativeWords.includes(w));
 
                 if (hasPositive && !hasNegative) {
                     positiveMessages++;
@@ -138,7 +152,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
     return (
         <div className="h-full overflow-y-auto bg-gradient-to-br from-gray-50 to-blue-50">
-            {/* 1. Dashboard Header: Page identity */}
+            {/* Header */}
             <div className="bg-white border-b border-gray-200 p-6 sticky top-0 z-10 shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--primary-color)] to-[var(--accent-color)] flex items-center justify-center shadow-lg">
@@ -154,7 +168,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
             </div>
 
             <div className="p-6 space-y-6">
-                {/* 2. Overview Statistics Cards */}
+                {/* Overview Statistics */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard
                         icon={
@@ -198,7 +212,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
                     />
                 </div>
 
-                {/* 3. Sentiment Analysis Visualization */}
+                {/* Sentiment Analysis */}
                 <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                     <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
                         <svg className="w-6 h-6 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,7 +247,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
 
                 {/* Two Column Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* 4. Top Contacts: People with most interaction */}
+                    {/* Top Contacts */}
                     <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                         <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
                             <svg className="w-6 h-6 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -256,7 +270,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
                         </div>
                     </div>
 
-                    {/* 5. Word Frequency: Common topics in conversations */}
+                    {/* Word Frequency */}
                     <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                         <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
                             <svg className="w-6 h-6 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,7 +292,7 @@ export default function ChatAnalysis({ chats, allMessages }: ChatAnalysisProps) 
                     </div>
                 </div>
 
-                {/* 6. Message Distribution: Comparison and Emojis */}
+                {/* Message Distribution */}
                 <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
                     <h2 className="text-xl font-bold text-[var(--text-color)] mb-4 flex items-center gap-2">
                         <svg className="w-6 h-6 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

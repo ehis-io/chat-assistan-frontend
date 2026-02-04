@@ -4,23 +4,21 @@ import Navbar from "../component/Navbar";
 import Footer from "../component/Footer";
 import Link from "next/link";
 import PaystackInline from "../component/PaystackInline";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getUserInfo, checkPaymentStatus, isAuthenticated, hasBusinessSetup } from "@/lib/utils/auth";
 
 const pricingTiers = [
     {
         id: "free",
-        name: "7-Day Trial",
+        name: "Free",
         price: "0",
-        description: "Experience full power for 7 days. No credit card required.",
+        description: "Perfect for testing and small personal projects.",
         features: [
-            "7 days of full access",
-            "Up to 50 messages/trial",
+            "Up to 5 messages/month",
             "Basic AI assistance",
-            "1 WhatsApp Business account",
-            "Community support",
         ],
-        buttonText: "Start Free Trial",
+        buttonText: "Get Started",
         highlight: false,
     },
     {
@@ -31,7 +29,7 @@ const pricingTiers = [
         features: [
             "Unlimited messages",
             "Advanced AI capabilities",
-            "Up to 5 Business accounts",
+            "PDF Knowledge Base upload",
             "Priority email support",
             "Custom message templates",
             "Detailed analytics",
@@ -46,7 +44,6 @@ const pricingTiers = [
         description: "Scalable solutions for large organizations.",
         features: [
             "Dedicated AI training",
-            "Unlimited Business accounts",
             "24/7 Phone & Zoom support",
             "Custom API integrations",
             "SLA guarantees",
@@ -60,6 +57,28 @@ const pricingTiers = [
 export default function Pricing() {
     const router = useRouter();
     const [successPayment, setSuccessPayment] = useState(false);
+    const [userEmail, setUserEmail] = useState("customer@example.com");
+    const [hasValidPayment, setHasValidPayment] = useState(false);
+    const [checkingPayment, setCheckingPayment] = useState(true);
+
+    useEffect(() => {
+        // ALLOW users to stay on pricing page even if authenticated/has business
+        // so they can upgrade to Pro.
+
+        const userInfo = getUserInfo();
+        if (userInfo && userInfo.email) {
+            setUserEmail(userInfo.email);
+        }
+
+        // Check payment status
+        const fetchPaymentStatus = async () => {
+            const result = await checkPaymentStatus();
+            setHasValidPayment(result.hasValidPayment);
+            setCheckingPayment(false);
+        };
+
+        fetchPaymentStatus();
+    }, []);
 
     const handlePaymentSuccess = (reference: any) => {
         console.log("Payment successful", reference);
@@ -87,6 +106,13 @@ export default function Pricing() {
                         <div className="max-w-md mx-auto mb-10 p-6 bg-green-50 border border-green-200 rounded-3xl text-center animate-bounce">
                             <h3 className="text-green-800 font-bold text-xl mb-2">Payment Successful! 🎉</h3>
                             <p className="text-green-700 text-sm">Validating your subscription and redirecting to setup...</p>
+                        </div>
+                    )}
+
+                    {hasValidPayment && (
+                        <div className="max-w-md mx-auto mb-10 p-6 bg-blue-50 border border-blue-200 rounded-3xl text-center">
+                            <h3 className="text-blue-800 font-bold text-xl mb-2">Active Subscription ✓</h3>
+                            <p className="text-blue-700 text-sm">You already have an active Pro subscription. No need to purchase again!</p>
                         </div>
                     )}
 
@@ -135,13 +161,21 @@ export default function Pricing() {
                                 </div>
 
                                 {tier.id === "pro" ? (
-                                    <PaystackInline
-                                        email="customer@example.com"
-                                        amount={Number(tier.price)}
-                                        label={tier.buttonText}
-                                        onSuccess={handlePaymentSuccess}
-                                        onClose={() => console.log("Payment modal closed")}
-                                    />
+                                    hasValidPayment ? (
+                                        <button
+                                            disabled
+                                            className="w-full py-4 rounded-2xl font-bold bg-gray-300 text-gray-500 cursor-not-allowed"
+                                        >
+                                            Active Subscription
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => router.push('/dashboard/billing')}
+                                            className="w-full py-4 rounded-2xl bg-[var(--primary-color)] text-white font-bold shadow-lg shadow-[var(--primary-color)]/30 hover:shadow-xl hover:shadow-[var(--primary-color)]/40 hover:bg-[var(--accent-color)] transition-all duration-300 transform active:scale-95"
+                                        >
+                                            {tier.buttonText}
+                                        </button>
+                                    )
                                 ) : (
                                     <Link href={tier.name === "Enterprise" ? "mailto:sales@soro.com" : `/register?plan=${tier.id}`} className="block">
                                         <button className={`w-full py-4 rounded-2xl font-bold transition-all duration-300 transform active:scale-95 ${tier.highlight

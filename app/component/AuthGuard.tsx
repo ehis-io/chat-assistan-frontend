@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, isAdmin, logout } from "@/lib/utils/auth";
+import { isAuthenticated, isAdmin, logout, getUserInfo } from "@/lib/utils/auth";
 
 interface AuthGuardProps {
     children: React.ReactNode;
@@ -37,11 +37,21 @@ export default function AuthGuard({ children, requireAuth = true, requireAdmin =
                     if (!userIsAdmin) {
                         // User is authenticated but not an admin
                         // Redirect to dashboard with access denied message
-                        if (typeof window !== 'undefined') {
-                            window.location.href = '/dashboard?error=access_denied';
-                        }
+                        router.push('/dashboard?error=access_denied');
                         return;
                     }
+                }
+
+                // Check if user has a business but hasn't linked WhatsApp
+                const info = getUserInfo();
+                const business = info?.business || info?.business_id;
+                // Strict check for CONNECTED status
+                const isMetaConnected = business?.whatsapp_status === 'CONNECTED';
+
+                if (business && !isMetaConnected && !requireAdmin) {
+                    // Regular user with business but WhatsApp is not CONNECTED, redirect to onboarding
+                    router.push('/onboarding?step=whatsapp_required');
+                    return;
                 }
 
                 setIsAuthorized(true);
