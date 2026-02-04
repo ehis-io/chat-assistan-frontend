@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { api } from "../../lib/api";
 import { useToast } from "../component/ToastProvider";
+import CountryCodeDropdown, { countries, type Country } from "../component/CountryCodeDropdown";
 
 
 export default function RegisterClient() {
@@ -18,6 +19,7 @@ export default function RegisterClient() {
 
 
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedCountry, setSelectedCountry] = useState<Country>(countries[0]); // Default to first country (US)
     const [formData, setFormData] = useState({
         firstName: "",
         lastName: "",
@@ -87,7 +89,7 @@ export default function RegisterClient() {
         const payload = {
             first_name: formData.firstName,
             last_name: formData.lastName,
-            phone_number: formData.phoneNumber,
+            phone_number: `${selectedCountry.code}${formData.phoneNumber.replace(/\D/g, "")}`,
             email: formData.email,
             password: formData.password,
             birthday: formatDOB(selectedDate)
@@ -183,15 +185,21 @@ export default function RegisterClient() {
 
                             <div>
                                 <label className="block text-sm font-medium text-[var(--text-color)] mb-1">Phone Number</label>
-                                <input
-                                    type="text"
-                                    name="phoneNumber"
-                                    value={formData.phoneNumber}
-                                    onChange={handleChange}
-                                    placeholder="+1 (555) 000-0000"
-                                    required
-                                    className="w-full rounded-xl border border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
-                                />
+                                <div className="flex">
+                                    <CountryCodeDropdown
+                                        selectedCountry={selectedCountry}
+                                        onSelect={setSelectedCountry}
+                                    />
+                                    <input
+                                        type="text"
+                                        name="phoneNumber"
+                                        value={formData.phoneNumber}
+                                        onChange={handleChange}
+                                        placeholder="(555) 000-0000"
+                                        required
+                                        className="w-full rounded-r-xl border border-l-0 border-gray-200 p-3 text-gray-900 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent outline-none transition-all"
+                                    />
+                                </div>
                             </div>
 
                             <div>
