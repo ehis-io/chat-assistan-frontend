@@ -101,7 +101,7 @@ export default function RegisterClient() {
             if (!response.success) {
                 // Check if it's a specific duplicate entry error
                 if (response.code === 'DUPLICATE_ENTRY') {
-                    setError("Email address is already in use.");
+                    setError(response.error || "Email or phone number is already in use.");
                 } else {
                     setError(response.error || "Registration failed.");
                 }
