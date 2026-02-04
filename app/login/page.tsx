@@ -20,6 +20,9 @@ function LoginForm() {
     if (searchParams.get("registered") === "true") {
       setSuccess("Account created successfully! Please sign in.");
     }
+    if (searchParams.get("session") === "expired") {
+      setError("Your session has expired. Please log in again.");
+    }
   }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

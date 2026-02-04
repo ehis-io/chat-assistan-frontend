@@ -1,3 +1,5 @@
+import { logout } from "./utils/auth";
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -19,6 +21,11 @@ async function handleResponse(response: Response): Promise<ApiResponse> {
   }
 
   if (!response.ok) {
+    // If token is expired or unauthorized, logout the user
+    if (response.status === 401) {
+      logout('/login?session=expired');
+    }
+
     // If it's the standard error format from our backend
     if (typeof data === 'object' && data !== null && 'success' in data) {
       return {
