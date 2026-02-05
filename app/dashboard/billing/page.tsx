@@ -115,7 +115,7 @@ export default function BillingPage() {
             if (res.ok) {
                 setSuccessMessage("Subscription cancelled. Your card has been removed.");
                 // Update local state to reflect removal
-                setBusiness(prev => ({ ...prev, paystack_auth_code: null }));
+                setBusiness((prev: any) => ({ ...prev, paystack_auth_code: null }));
                 // We don't change hasPaid immediately to false because they might still have time
             } else {
                 alert("Failed to cancel subscription. Please try again.");
