@@ -85,6 +85,12 @@ export default function CardForm({ email, onSuccess, onCancel }: CardFormProps) 
             });
 
             const result = await response.json();
+
+            if (!response.ok) {
+                setError(result.message || "An error occurred during charge initiation.");
+                return;
+            }
+
             handleResponse(result.data);
         } catch (err: any) {
             setError(err.message || "An error occurred during charge initiation.");

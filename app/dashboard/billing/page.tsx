@@ -13,6 +13,28 @@ export default function BillingPage() {
     const [loading, setLoading] = useState(true);
     const [showCardForm, setShowCardForm] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [fetchingTransactions, setFetchingTransactions] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
+
+    const fetchTransactions = async () => {
+        setFetchingTransactions(true);
+        try {
+            const token = getToken();
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/payment/transactions`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            const result = await res.json();
+            if (result.status === 200 || result.data) {
+                setTransactions(result.data);
+            }
+        } catch (err) {
+            console.error("Error fetching transactions:", err);
+        } finally {
+            setFetchingTransactions(false);
+        }
+    };
 
     useEffect(() => {
         const info = getUserInfo();
@@ -23,37 +45,87 @@ export default function BillingPage() {
             return;
         }
 
+
         const verifyPayment = async () => {
             const status = await checkPaymentStatus();
             setHasPaid(status.hasValidPayment);
             setLoading(false);
         };
+
         verifyPayment();
+        fetchTransactions();
     }, []);
 
     const handleCardSuccess = async (response: any) => {
         console.log("Card setup successful", response);
-        setSuccessMessage("Card successfully added! Your Pro subscription is now active.");
+        setSuccessMessage("Payment processing... Verifying transaction...");
         setShowCardForm(false);
+
+        try {
+            const reference = response.reference;
+            if (reference) {
+                const token = getToken();
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+
+                // Manually verify to trigger backend processing (and save auth code)
+                // This is critical for localhost where webhooks might not reach
+                await fetch(`${baseUrl}/payment/verify/${reference}`, {
+                    method: 'GET',
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+            }
+        } catch (err) {
+            console.error("Verification trigger failed", err);
+        }
+
+        setSuccessMessage("Payment successful! Updating your subscription...");
         setHasPaid(true);
 
-        // Refresh business info from backend after a short delay to allow webhook processing
-        setTimeout(async () => {
-            const status = await checkPaymentStatus();
-            setHasPaid(status.hasValidPayment);
+        // Refresh business info from backend
+        const status = await checkPaymentStatus();
+        setHasPaid(status.hasValidPayment);
+        fetchTransactions(); // Refresh the list
 
-            // In a real app, we might have an endpoint /auth/me to get full user/business info
-            // For now, we manually update if PREMIUM is confirmed
-            if (status.hasValidPayment) {
-                const info = getUserInfo();
-                if (info && info.business) {
-                    const updatedBusiness = { ...info.business, payment_type: 'PREMIUM' };
-                    setBusiness(updatedBusiness);
-                    setUserInfo({ ...info, business: updatedBusiness });
-                }
+        if (status.hasValidPayment) {
+            const info = getUserInfo();
+            if (info && info.business) {
+                const updatedBusiness = { ...info.business, payment_type: 'PREMIUM' };
+                // We might want to reload the user info fully to get the sensitive auth_code flag if needed
+                // but strictly speaking we just need to know they are premium
+                setBusiness(updatedBusiness);
+                setUserInfo({ ...info, business: updatedBusiness });
             }
-            setSuccessMessage("");
-        }, 3000);
+        }
+
+        setTimeout(() => setSuccessMessage(""), 5000);
+    };
+
+    const handleCancelSubscription = async () => {
+        if (!confirm("Are you sure you want to stop your subscription? Your card will be removed and you won't be charged again.")) return;
+
+        setCancelling(true);
+        try {
+            const token = getToken();
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/payment/cancel-subscription`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                setSuccessMessage("Subscription cancelled. Your card has been removed.");
+                // Update local state to reflect removal
+                setBusiness(prev => ({ ...prev, paystack_auth_code: null }));
+                // We don't change hasPaid immediately to false because they might still have time
+            } else {
+                alert("Failed to cancel subscription. Please try again.");
+            }
+        } catch (err) {
+            console.error("Error cancelling subscription:", err);
+            alert("An error occurred.");
+        } finally {
+            setCancelling(false);
+        }
     };
 
     if (loading) {
@@ -151,15 +223,24 @@ export default function BillingPage() {
                                     >
                                         Update Payment Method →
                                     </button>
+
+                                    <button
+                                        onClick={handleCancelSubscription}
+                                        disabled={cancelling}
+                                        className="block mt-4 text-red-500 text-xs font-bold hover:text-red-700 transition-colors"
+                                    >
+                                        {cancelling ? "Removing..." : "Stop Subscription & Remove Card"}
+                                    </button>
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col justify-center text-center">
                                     <p className="text-gray-400 text-sm mb-6">No payment method saved.</p>
                                     <button
                                         onClick={() => setShowCardForm(true)}
-                                        className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-black transition-all shadow-lg"
+                                        disabled={hasPaid}
+                                        className={`w-full py-4 rounded-2xl font-bold transition-all shadow-lg ${hasPaid ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-black'}`}
                                     >
-                                        Add Payment Card
+                                        {hasPaid ? 'Subscription Active' : 'Add Payment Card'}
                                     </button>
                                 </div>
                             )}
@@ -170,6 +251,74 @@ export default function BillingPage() {
                                     <span className="text-xs font-bold text-gray-800">
                                         {new Date(business.next_billing_date).toLocaleDateString()}
                                     </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Transaction History */}
+                    <div className="mt-12 bg-white rounded-[2.5rem] shadow-xl border border-gray-100 overflow-hidden group hover:shadow-2xl transition-all duration-500">
+                        <div className="p-8 border-b border-gray-50 flex justify-between items-center">
+                            <div>
+                                <h3 className="text-gray-400 text-xs font-black uppercase tracking-widest mb-1">Billing history</h3>
+                                <h2 className="text-xl font-bold text-gray-900">Past Payments</h2>
+                            </div>
+                            {fetchingTransactions && (
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                            )}
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            {transactions.length > 0 ? (
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50/50">
+                                            <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                                            <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
+                                            <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                                            <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {transactions.map((tx) => (
+                                            <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-8 py-6 text-sm font-bold text-gray-700">
+                                                    {new Date(tx.created_at).toLocaleDateString(undefined, {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric'
+                                                    })}
+                                                </td>
+                                                <td className="px-8 py-6">
+                                                    <p className="text-sm font-bold text-gray-800">{tx.description || 'Subscription Payment'}</p>
+                                                    <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{tx.reference}</p>
+                                                </td>
+                                                <td className="px-8 py-6 text-sm font-black text-gray-900 text-right">
+                                                    {(tx.amount / 1000).toLocaleString(undefined, {
+                                                        style: 'currency',
+                                                        currency: tx.currency || 'NGN'
+                                                    })}
+                                                </td>
+                                                <td className="px-8 py-6 text-center">
+                                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${tx.status === 'SUCCESSFUL' ? 'bg-green-50 text-green-600' :
+                                                        tx.status === 'PENDING' ? 'bg-amber-50 text-amber-600' :
+                                                            'bg-red-50 text-red-600'
+                                                        }`}>
+                                                        {tx.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="p-12 text-center">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-gray-400 font-bold">No transactions found.</p>
                                 </div>
                             )}
                         </div>
