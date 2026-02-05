@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getToken } from "@/lib/utils/auth";
 
 interface Message {
     id: string;
@@ -18,16 +19,44 @@ interface ChatWindowProps {
     onSendMessage: (message: string) => void;
 }
 
+interface Template {
+    id: string;
+    name: string;
+    content: string;
+    category: string;
+    status: string;
+}
+
 export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWindowProps) {
     const [inputMessage, setInputMessage] = useState("");
     const [showTemplates, setShowTemplates] = useState(false);
-    // Removed localMessages state to rely on props (SSOT)
+    const [templates, setTemplates] = useState<Template[]>([]);
 
-    const mockTemplates = [
-        { id: "1", name: "welcome_message", text: "Hello! Welcome to our service. How can we help you today?", category: "UTILITY" },
-        { id: "2", name: "order_confirmation", text: "Your order has been confirmed. It will be delivered by tomorrow.", category: "TRANSACTIONAL" },
-        { id: "3", name: "appointment_reminder", text: "Friendly reminder of your appointment scheduled for tomorrow.", category: "UTILITY" }
-    ];
+    useEffect(() => {
+        if (showTemplates) {
+            fetchTemplates();
+        }
+    }, [showTemplates]);
+
+    const fetchTemplates = async () => {
+        try {
+            const token = getToken();
+            if (!token) return;
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/template`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                // Filter only approved templates for selection
+                setTemplates(data.filter((t: any) => t.status === 'APPROVED'));
+            }
+        } catch (error) {
+            console.error("Error fetching templates:", error);
+        }
+    };
 
     const handleSend = () => {
         if (inputMessage.trim()) {
@@ -36,8 +65,8 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
         }
     };
 
-    const handleSendTemplate = (template: typeof mockTemplates[0]) => {
-        onSendMessage(template.text);
+    const handleSendTemplate = (template: Template) => {
+        onSendMessage(template.content);
         setShowTemplates(false);
     };
 
@@ -65,24 +94,30 @@ export default function ChatWindow({ chatName, messages, onSendMessage }: ChatWi
                         </button>
                     </div>
                     <div className="p-2 space-y-1 max-h-72 overflow-y-auto">
-                        {mockTemplates.map(t => (
-                            <button
-                                key={t.id}
-                                onClick={() => handleSendTemplate(t)}
-                                className="w-full text-left p-4 hover:bg-blue-50 rounded-xl transition-all group relative border border-transparent hover:border-blue-100"
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className="text-[10px] font-bold text-[var(--primary-color)] uppercase tracking-wider">{t.name}</span>
-                                    <span className="text-[9px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-bold">APPROVED</span>
-                                </div>
-                                <p className="text-sm text-gray-700 line-clamp-2 italic">"{t.text}"</p>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg className="w-5 h-5 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </div>
-                            </button>
-                        ))}
+                        {templates.length === 0 ? (
+                            <div className="p-8 text-center text-gray-400 text-sm italic">
+                                No approved templates found.
+                            </div>
+                        ) : (
+                            templates.map(t => (
+                                <button
+                                    key={t.id}
+                                    onClick={() => handleSendTemplate(t)}
+                                    className="w-full text-left p-4 hover:bg-blue-50 rounded-xl transition-all group relative border border-transparent hover:border-blue-100"
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="text-[10px] font-bold text-[var(--primary-color)] uppercase tracking-wider">{t.name}</span>
+                                        <span className="text-[9px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-bold">{t.status}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-700 line-clamp-2 italic">"{t.content}"</p>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <svg className="w-5 h-5 text-[var(--primary-color)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </div>
+                                </button>
+                            ))
+                        )}
                     </div>
                     <div className="p-3 bg-gray-50 rounded-b-2xl border-t border-gray-100 text-center">
                         <Link href="/dashboard/templates" className="text-xs text-[var(--primary-color)] font-bold hover:underline">

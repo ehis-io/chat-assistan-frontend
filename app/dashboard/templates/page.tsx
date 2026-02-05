@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getToken } from "@/lib/utils/auth";
 
 interface Template {
     id: string;
@@ -12,27 +13,8 @@ interface Template {
     content: string;
 }
 
-const initialTemplates: Template[] = [
-    {
-        id: "1",
-        name: "welcome_message",
-        category: "UTILITY",
-        language: "en_US",
-        status: "APPROVED",
-        content: "Hello {{1}}, welcome to our service! We are happy to have you."
-    },
-    {
-        id: "2",
-        name: "order_confirmation",
-        category: "TRANSACTIONAL",
-        language: "en_US",
-        status: "APPROVED",
-        content: "Your order {{1}} has been confirmed. It will be delivered by {{2}}."
-    }
-];
-
 export default function TemplatesPage() {
-    const [templates, setTemplates] = useState<Template[]>(initialTemplates);
+    const [templates, setTemplates] = useState<Template[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
@@ -43,23 +25,60 @@ export default function TemplatesPage() {
         content: ""
     });
 
-    const handleCreate = (e: React.FormEvent) => {
+    useEffect(() => {
+        fetchTemplates();
+    }, []);
+
+    const fetchTemplates = async () => {
+        try {
+            const token = getToken();
+            if (!token) return;
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/template`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setTemplates(data);
+            }
+        } catch (error) {
+            console.error("Error fetching templates:", error);
+        }
+    };
+
+    const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // Simulate API call to Meta
-        setTimeout(() => {
-            const template: Template = {
-                id: Math.random().toString(36).substr(2, 9),
-                ...newTemplate,
-                status: "PENDING"
-            };
-            setTemplates([template, ...templates]);
+        try {
+            const token = getToken();
+            if (!token) return;
+
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001/api/v1';
+            const res = await fetch(`${baseUrl}/template`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(newTemplate)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setTemplates([data, ...templates]);
+                setIsCreating(false);
+                setShowSuccess(true);
+                setNewTemplate({ name: "", category: "MARKETING", language: "en_US", content: "" });
+            }
+        } catch (error) {
+            console.error("Error creating template:", error);
+            alert("Failed to create template. Please try again.");
+        } finally {
             setIsSubmitting(false);
-            setIsCreating(false);
-            setShowSuccess(true);
-            setNewTemplate({ name: "", category: "MARKETING", language: "en_US", content: "" });
-        }, 1500);
+        }
     };
 
     return (
