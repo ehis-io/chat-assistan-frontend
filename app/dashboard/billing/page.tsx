@@ -294,7 +294,7 @@ export default function BillingPage() {
                                                     <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{tx.reference}</p>
                                                 </td>
                                                 <td className="px-8 py-6 text-sm font-black text-gray-900 text-right">
-                                                    {(tx.amount / 1000).toLocaleString(undefined, {
+                                                    {(tx.amount / 100).toLocaleString(undefined, {
                                                         style: 'currency',
                                                         currency: tx.currency || 'NGN'
                                                     })}
