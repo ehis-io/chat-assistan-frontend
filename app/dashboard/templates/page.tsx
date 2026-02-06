@@ -168,7 +168,11 @@ export default function TemplatesPage() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-                                <select className="w-full rounded-xl border border-gray-200 p-3 outline-none focus:ring-2 focus:ring-[var(--primary-color)] bg-white">
+                                <select
+                                    className="w-full rounded-xl border border-gray-200 p-3 outline-none focus:ring-2 focus:ring-[var(--primary-color)] bg-white"
+                                    value={newTemplate.language}
+                                    onChange={e => setNewTemplate({ ...newTemplate, language: e.target.value })}
+                                >
                                     <option value="en_US">English (US)</option>
                                     <option value="es_ES">Spanish</option>
                                     <option value="fr_FR">French</option>
