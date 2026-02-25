@@ -57,8 +57,7 @@ export default function RegisterClient() {
         const day = String(date.getDate()).padStart(2, "0");
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const year = date.getFullYear();
-        const newDate = `${year}-${month}-${day}`;
-        return new Date(newDate);
+        return `${year}-${month}-${day}`;
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
